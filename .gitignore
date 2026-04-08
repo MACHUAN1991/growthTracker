@@ -1,0 +1,38 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+ENV/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Photos and media (managed separately)
+photos/
+thumbnails/
+videos/
+
+# Database
+photos.db
+*.db
+
+# Temp files
+*.tmp
+*.log
+.DS_Store
+Thumbs.db
+
+# Test/debug files
+test_*
+thumb_test.jpg
+video_thumb.jpg
+minimax_page.png
+
+# Environment
+.env

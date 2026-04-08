@@ -1,0 +1,1212 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>成长记录</title>
+    <style>
+        :root {
+            --bg: #f7f5f2;
+            --bg-card: #ffffff;
+            --bg-elevated: #f0ede8;
+            --accent: #b8965a;
+            --accent-dim: rgba(184, 150, 90, 0.1);
+            --text: #2a2a2a;
+            --text-dim: #8a8a8a;
+            --border: #e5e0da;
+            --radius: 12px;
+            --shadow: 0 2px 16px rgba(0,0,0,0.06);
+            --shadow-hover: 0 8px 32px rgba(0,0,0,0.1);
+            --transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, 'SF Pro Display', 'Inter', 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        a { color: inherit; text-decoration: none; }
+
+        /* ---- Header ---- */
+        .header {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 28px 32px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .header-left { display: flex; flex-direction: column; gap: 3px; }
+        .header h1 {
+            font-size: 1.6rem;
+            font-weight: 600;
+            letter-spacing: -0.02em;
+            color: var(--text);
+        }
+        .header .subtitle {
+            font-size: 0.8rem;
+            color: var(--accent);
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            opacity: 0.8;
+        }
+        .header-right { display: flex; align-items: center; gap: 10px; }
+        .menu-btn {
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            background: var(--bg-elevated);
+            border: 1px solid var(--border);
+            cursor: pointer;
+            font-size: 1.1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: var(--transition);
+        }
+        .menu-btn:hover { border-color: var(--accent); }
+        .menu-dropdown {
+            position: absolute;
+            top: 62px;
+            right: 32px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-hover);
+            min-width: 150px;
+            z-index: 100;
+            display: none;
+        }
+        .menu-dropdown.show { display: block; }
+        .menu-item {
+            padding: 10px 18px;
+            cursor: pointer;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .menu-item:hover { background: var(--accent-dim); }
+        .menu-item:first-child { border-radius: var(--radius) var(--radius) 0 0; }
+        .menu-item:last-child { border-radius: 0 0 var(--radius) var(--radius); }
+
+        /* ---- Info Bar ---- */
+        .info-bar {
+            max-width: 1400px;
+            margin: 0 auto 24px;
+            padding: 0 32px;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+        .stats { display: flex; gap: 20px; }
+        .stat { display: flex; flex-direction: column; gap: 2px; }
+        .stat .number {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--accent);
+            letter-spacing: -0.02em;
+        }
+        .stat .label { font-size: 0.78rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.06em; }
+
+        .filters { display: flex; gap: 8px; flex-wrap: wrap; }
+        .filter-btn {
+            padding: 8px 18px;
+            border: 1px solid var(--border);
+            background: transparent;
+            color: var(--text-dim);
+            border-radius: 18px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-family: inherit;
+            transition: var(--transition);
+        }
+        .filter-btn:hover { border-color: var(--accent); color: var(--text); }
+        .filter-btn.active {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: #0f0f0f;
+            font-weight: 500;
+        }
+
+        .year-list { display: flex; gap: 8px; flex-wrap: wrap; }
+        .year-btn {
+            padding: 8px 18px;
+            border: 1px solid var(--border);
+            background: transparent;
+            color: var(--text-dim);
+            border-radius: 18px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-family: inherit;
+            transition: var(--transition);
+        }
+        .year-btn:hover { border-color: var(--accent); color: var(--text); }
+        .year-btn.active {
+            background: var(--accent-dim);
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        .upload-btn {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 18px;
+            background: var(--accent);
+            color: #0f0f0f;
+            border: none;
+            border-radius: 18px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+            font-family: inherit;
+            transition: var(--transition);
+        }
+        .upload-btn:hover { opacity: 0.85; }
+        .select-btn {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            padding: 8px 18px;
+            background: transparent;
+            color: var(--text-dim);
+            border: 1px solid var(--border);
+            border-radius: 18px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-family: inherit;
+            transition: var(--transition);
+        }
+        .select-btn:hover { border-color: var(--text-dim); color: var(--text); }
+        .select-btn.active { background: var(--accent); border-color: var(--accent); color: #0f0f0f; }
+        .delete-selected-btn {
+            display: none;
+            align-items: center;
+            gap: 5px;
+            padding: 8px 18px;
+            background: #e88;
+            color: #fff;
+            border: none;
+            border-radius: 18px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-family: inherit;
+            transition: var(--transition);
+        }
+        .delete-selected-btn:hover { opacity: 0.85; }
+        .delete-selected-btn.show { display: flex; }
+        .share-btn {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            padding: 8px 18px;
+            background: transparent;
+            color: var(--text-dim);
+            border: 1px solid var(--border);
+            border-radius: 18px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-family: inherit;
+            transition: var(--transition);
+        }
+        .share-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+        /* Share Toast */
+        .share-toast {
+            position: fixed;
+            bottom: 60px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--bg-card);
+            border: 1px solid var(--accent);
+            border-radius: 24px;
+            padding: 14px 28px;
+            font-size: 0.9rem;
+            color: var(--text);
+            box-shadow: var(--shadow-hover);
+            z-index: 5000;
+            opacity: 0;
+            transition: opacity 0.3s;
+            pointer-events: none;
+        }
+        .share-toast.show {
+            opacity: 1;
+        }
+
+        /* ---- Main ---- */
+        .main {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 32px 60px;
+        }
+
+        /* ---- Timeline ---- */
+        .timeline { position: relative; }
+        .timeline-section { margin-bottom: 40px; }
+        .timeline-header {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            margin-bottom: 14px;
+        }
+        .timeline-header h3 {
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: var(--accent);
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+        }
+        .timeline-header .line {
+            flex: 1;
+            height: 1px;
+            background: var(--border);
+            opacity: 0.5;
+        }
+        .timeline-header .count {
+            font-size: 0.78rem;
+            color: var(--text-dim);
+        }
+
+        /* ---- Media Grid ---- */
+        .media-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+            gap: 8px;
+        }
+        .media-card {
+            background: var(--bg-card);
+            border-radius: 8px;
+            overflow: hidden;
+            cursor: pointer;
+            transition: var(--transition);
+            border: 1px solid transparent;
+            position: relative;
+        }
+        .media-card:hover {
+            border-color: var(--border);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 16px rgba(0,0,0,0.07);
+        }
+        .media-card .thumb {
+            width: 100%;
+            aspect-ratio: 3/4;
+            object-fit: cover;
+            display: block;
+            background: var(--bg-elevated);
+        }
+        .media-card.select-mode { cursor: default; }
+        .media-card .check-overlay {
+            display: none;
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            width: 24px;
+            height: 24px;
+            background: rgba(255,255,255,0.9);
+            border: 2px solid var(--accent);
+            border-radius: 50%;
+            z-index: 5;
+            align-items: center;
+            justify-content: center;
+        }
+        .select-mode .media-card .check-overlay { display: flex; }
+        .media-card.selected .check-overlay {
+            background: var(--accent);
+        }
+        .media-card.selected .check-overlay::after {
+            content: '✓';
+            color: #fff;
+            font-size: 14px;
+            font-weight: bold;
+        }
+
+        /* ---- Video Card ---- */
+        .video-card {
+            position: relative;
+            background: var(--bg-elevated);
+        }
+        .video-thumb {
+            width: 100%;
+            aspect-ratio: 3/4;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #b8965a 0%, #8b7355 100%);
+        }
+        .play-icon {
+            width: 48px;
+            height: 48px;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 50%;
+            position: relative;
+        }
+        .play-icon::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 55%;
+            transform: translate(-50%, -50%);
+            border-style: solid;
+            border-width: 10px 0 10px 16px;
+            border-color: transparent transparent transparent #8b7355;
+        }
+        .video-card:hover .play-icon {
+            background: #fff;
+        }
+
+        /* ---- Empty ---- */
+        .empty {
+            text-align: center;
+            padding: 100px 40px;
+            color: var(--text-dim);
+        }
+        .empty .empty-icon { font-size: 3rem; margin-bottom: 16px; opacity: 0.3; }
+        .empty h3 { font-size: 1rem; font-weight: 400; margin-bottom: 8px; color: var(--text); }
+        .empty p { font-size: 0.85rem; }
+
+        /* ---- Lightbox ---- */
+        .lightbox {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(20, 18, 16, 0.92);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+        }
+        .lightbox.active { display: flex; }
+        .lightbox .lb-media {
+            max-width: 90vw;
+            max-height: 75vh;
+            border-radius: var(--radius);
+            box-shadow: 0 20px 80px rgba(0,0,0,0.8);
+        }
+        .lightbox .lb-info {
+            margin-top: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+            width: 100%;
+            max-width: 480px;
+            padding: 0 20px;
+        }
+        .lightbox .lb-date {
+            font-size: 0.8rem;
+            color: var(--text-dim);
+            letter-spacing: 0.06em;
+        }
+        .lightbox .lb-desc {
+            background: var(--bg-elevated);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 0.82rem;
+            font-family: inherit;
+            width: 200px;
+            max-width: 100%;
+            text-align: center;
+            transition: var(--transition);
+        }
+        .lightbox .lb-desc:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+        .lightbox .lb-gps {
+            margin-top: 8px;
+            text-align: center;
+        }
+        .lightbox .lb-gps a {
+            color: var(--accent);
+            font-size: 0.8rem;
+            text-decoration: none;
+            opacity: 0.8;
+            transition: opacity 0.2s;
+        }
+        .lightbox .lb-gps a:hover {
+            opacity: 1;
+            text-decoration: underline;
+        }
+        .lb-delete-btn {
+            margin-top: 12px;
+            padding: 8px 20px;
+            background: transparent;
+            border: 1px solid #e88;
+            color: #e88;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            font-family: inherit;
+            transition: var(--transition);
+        }
+        .lb-delete-btn:hover {
+            background: #e88;
+            color: #fff;
+        }
+
+        /* ---- Delete Modal ---- */
+        .delete-modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(20, 18, 16, 0.8);
+            backdrop-filter: blur(8px);
+            z-index: 3000;
+            align-items: center;
+            justify-content: center;
+        }
+        .delete-modal.active { display: flex; }
+        .delete-modal-content {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 32px;
+            width: 320px;
+            text-align: center;
+        }
+        .delete-modal-title {
+            font-size: 1rem;
+            font-weight: 500;
+            margin-bottom: 20px;
+            color: var(--text);
+        }
+        .delete-password-input {
+            width: 100%;
+            padding: 10px 16px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            font-size: 0.9rem;
+            font-family: inherit;
+            background: var(--bg-elevated);
+            color: var(--text);
+            text-align: center;
+        }
+        .delete-password-input:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+        .delete-error {
+            color: #e88;
+            font-size: 0.78rem;
+            margin-top: 8px;
+            min-height: 1.2em;
+        }
+        .delete-modal-buttons {
+            display: flex;
+            gap: 12px;
+            margin-top: 20px;
+        }
+        .delete-modal-btn {
+            flex: 1;
+            padding: 10px;
+            border-radius: var(--radius);
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-family: inherit;
+            transition: var(--transition);
+        }
+        .delete-modal-btn.cancel {
+            background: var(--bg-elevated);
+            border: 1px solid var(--border);
+            color: var(--text);
+        }
+        .delete-modal-btn.cancel:hover {
+            border-color: var(--text-dim);
+        }
+        .delete-modal-btn.confirm {
+            background: #e88;
+            border: 1px solid #e88;
+            color: #fff;
+        }
+        .delete-modal-btn.confirm:hover {
+            opacity: 0.85;
+        }
+
+        .lightbox .lb-close {
+            position: absolute;
+            top: 24px;
+            right: 24px;
+            width: 40px;
+            height: 40px;
+            border: 1px solid rgba(255,255,255,0.2);
+            background: rgba(255,255,255,0.1);
+            color: #fff;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 1.2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: var(--transition);
+        }
+        .lightbox .lb-close:hover { background: rgba(255,255,255,0.15); }
+        .lightbox .lb-nav {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 44px;
+            height: 44px;
+            border: 1px solid rgba(255,255,255,0.2);
+            background: rgba(255,255,255,0.1);
+            color: #fff;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 1.1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: var(--transition);
+        }
+        .lightbox .lb-nav:hover { background: rgba(255,255,255,0.2); border-color: rgba(255,255,255,0.4); }
+        .lightbox .lb-nav.prev { left: 20px; }
+        .lightbox .lb-nav.next { right: 20px; }
+
+        /* ---- Upload Modal ---- */
+        .upload-modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(20, 18, 16, 0.7);
+            backdrop-filter: blur(8px);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+        }
+        .upload-modal.active { display: flex; }
+        .upload-modal .modal {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 36px;
+            width: 90%;
+            max-width: 480px;
+            box-shadow: 0 24px 80px rgba(0,0,0,0.6);
+            position: relative;
+        }
+        .upload-modal .modal-title {
+            font-size: 1rem;
+            font-weight: 500;
+            margin-bottom: 24px;
+            color: var(--text);
+        }
+        .upload-modal .modal-close {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            width: 32px;
+            height: 32px;
+            border: 1px solid var(--border);
+            background: transparent;
+            color: var(--text-dim);
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: var(--transition);
+        }
+        .upload-modal .modal-close:hover { border-color: var(--text-dim); color: var(--text); }
+        .drop-zone {
+            border: 1.5px dashed var(--border);
+            border-radius: var(--radius);
+            padding: 48px 24px;
+            text-align: center;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+        .drop-zone:hover, .drop-zone.dragover { border-color: var(--accent); background: var(--accent-dim); }
+        .drop-zone .dz-icon { font-size: 2rem; margin-bottom: 12px; }
+        .drop-zone .dz-text { font-size: 0.85rem; color: var(--text-dim); }
+        .drop-zone .dz-text strong { color: var(--accent); }
+        .drop-zone .dz-hint { font-size: 0.75rem; color: var(--text-dim); margin-top: 8px; opacity: 0.6; }
+        .upload-file-input { display: none; }
+        .upload-progress { display: none; margin-top: 20px; }
+        .upload-progress.active { display: block; }
+        .progress-bar-wrap { background: var(--bg-elevated); border-radius: 4px; height: 4px; overflow: hidden; margin-bottom: 8px; }
+        .progress-bar { height: 100%; background: var(--accent); width: 0%; transition: width 0.3s; }
+        .progress-text { font-size: 0.78rem; color: var(--text-dim); }
+        .upload-result { display: none; margin-top: 16px; padding: 12px 16px; border-radius: var(--radius); font-size: 0.82rem; }
+        .upload-result.success { display: block; background: rgba(78, 201, 196, 0.1); border: 1px solid rgba(78, 201, 196, 0.3); color: #7eb8da; }
+        .upload-result.error { display: block; background: rgba(255,107,107,0.1); border: 1px solid rgba(255,107,107,0.3); color: #e88; }
+        .video-date-row { display: none; margin-top: 16px; }
+        .video-date-row.visible { display: block; }
+        .video-date-label { font-size: 0.78rem; color: var(--text-dim); margin-bottom: 8px; }
+        .video-date-input {
+            width: 100%;
+            background: var(--bg-elevated);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 9px 14px;
+            border-radius: var(--radius);
+            font-size: 0.85rem;
+            font-family: inherit;
+            transition: var(--transition);
+            color-scheme: light;
+        }
+        .video-date-input:focus { outline: none; border-color: var(--accent); }
+        .confirm-upload-btn {
+            display: none;
+            width: 100%;
+            margin-top: 16px;
+            padding: 11px;
+            background: var(--accent);
+            color: #fff;
+            border: none;
+            border-radius: var(--radius);
+            font-size: 0.85rem;
+            font-weight: 500;
+            font-family: inherit;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+        .confirm-upload-btn:hover { opacity: 0.85; }
+
+        /* ---- Back to Top ---- */
+        .back-top {
+            position: fixed;
+            bottom: 28px;
+            right: 28px;
+            width: 40px;
+            height: 40px;
+            background: var(--bg-elevated);
+            border: 1px solid var(--border);
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 1rem;
+            color: var(--text-dim);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            transition: var(--transition);
+            z-index: 100;
+        }
+        .back-top.visible { display: flex; }
+        .back-top:hover { border-color: var(--accent); color: var(--accent); }
+
+        /* ---- Responsive ---- */
+        @media (max-width: 768px) {
+            .header { padding: 28px 20px 24px; }
+            .info-bar { padding: 0 20px; gap: 16px; margin-bottom: 28px; }
+            .stats { gap: 20px; }
+            .stat .number { font-size: 1.2rem; }
+            .main { padding: 0 16px 60px; }
+            .media-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+            .lightbox .lb-nav { width: 36px; height: 36px; font-size: 0.9rem; }
+            .lightbox .lb-nav.prev { left: 8px; }
+            .lightbox .lb-nav.next { right: 8px; }
+        }
+    </style>
+</head>
+<body>
+
+    <header class="header">
+        <div class="header-left">
+            <h1>成长记录</h1>
+            <div class="subtitle">Memory Archive</div>
+        </div>
+        <div class="header-right" style="position: relative;">
+            <button class="select-btn" id="selectBtn" onclick="toggleSelectMode()">选择</button>
+            <button class="delete-selected-btn" id="deleteSelectedBtn" onclick="startBatchDelete()">删除已选</button>
+            <button class="share-btn" id="shareBtn" onclick="sharePage()">分享</button>
+            <button class="upload-btn" onclick="openUpload()">+ 上传</button>
+            <button class="menu-btn" onclick="toggleMenu()">☰</button>
+            <div class="menu-dropdown" id="menuDropdown">
+                <div class="menu-item" onclick="location.href='/'">📷 成长记录</div>
+                <div class="menu-item" onclick="location.href='/joke'">😂 随机笑话</div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Share Toast -->
+    <div class="share-toast" id="shareToast"></div>
+
+    <div class="info-bar">
+        <div class="stats" id="stats">
+            <div class="stat"><div class="number" id="statTotal">—</div><div class="label">全部</div></div>
+            <div class="stat"><div class="number" id="statYears">—</div><div class="label">年份</div></div>
+            <div class="stat"><div class="number" id="statMonths">—</div><div class="label">月份</div></div>
+        </div>
+        <div class="filters">
+            <button class="filter-btn active" onclick="setType('all')">全部</button>
+            <button class="filter-btn" onclick="setType('photo')">照片</button>
+            <button class="filter-btn" onclick="setType('video')">视频</button>
+        </div>
+        <div class="year-list" id="yearList"></div>
+    </div>
+
+    <main class="main">
+        <div class="timeline" id="timeline"></div>
+    </main>
+
+    <!-- Lightbox -->
+    <div class="lightbox" id="lightbox">
+        <button class="lb-close" onclick="closeLb()">×</button>
+        <button class="lb-nav prev" onclick="navigate(-1)">‹</button>
+        <div id="lbMedia"></div>
+        <div class="lb-info">
+            <div class="lb-date" id="lbDate"></div>
+            <input class="lb-desc" id="lbDesc" placeholder="添加描述..." onblur="saveDesc()">
+            <div class="lb-gps" id="lbGps"></div>
+            <button class="lb-delete-btn" id="lbDeleteBtn" onclick="startDelete()">删除</button>
+        </div>
+        <button class="lb-nav next" onclick="navigate(1)">›</button>
+    </div>
+
+    <!-- Delete Password Modal -->
+    <div class="delete-modal" id="deleteModal">
+        <div class="delete-modal-content">
+            <div class="delete-modal-title" id="deleteModalTitle">请输入密码</div>
+            <input type="password" class="delete-password-input" id="deletePasswordInput" placeholder="密码">
+            <div class="delete-error" id="deleteError"></div>
+            <div class="delete-modal-buttons">
+                <button class="delete-modal-btn cancel" onclick="closeDeleteModal()">取消</button>
+                <button class="delete-modal-btn confirm" onclick="submitDelete()">确认</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Upload Modal -->
+    <div class="upload-modal" id="uploadModal">
+        <div class="modal">
+            <button class="modal-close" onclick="closeUpload()">×</button>
+            <div class="modal-title">上传文件</div>
+            <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+                <div class="dz-icon">↑</div>
+                <div class="dz-text">拖拽文件到这里，或 <strong>点击选择</strong></div>
+                <div class="dz-hint">JPG · PNG · GIF · WEBP · MP4 · MOV</div>
+            </div>
+            <input type="file" class="upload-file-input" id="fileInput" multiple accept="image/*,video/*">
+            <div class="video-date-row" id="videoDateRow">
+                <div class="video-date-label">视频拍摄日期（元数据缺失时手动填写）</div>
+                <input type="date" class="video-date-input" id="videoDateInput">
+            </div>
+            <button class="confirm-upload-btn" id="confirmUploadBtn" onclick="confirmUpload()">确认上传</button>
+            <div class="upload-progress" id="uploadProgress">
+                <div class="progress-bar-wrap"><div class="progress-bar" id="progressBar"></div></div>
+                <div class="progress-text" id="progressText">上传中...</div>
+            </div>
+            <div id="uploadResult"></div>
+        </div>
+    </div>
+
+    <!-- Back to Top -->
+    <button class="back-top" id="backTop" onclick="window.scrollTo({top:0,behavior:'smooth'})">↑</button>
+
+    <script>
+        const MONTHS = ['一月','二月','三月','四月','五月','六月','七月','八月','九月','十月','十一月','十二月'];
+        let allMedia = [], displayedMedia = [];
+        let curYear = null, curType = 'all', curIndex = 0;
+
+        async function loadTimeline() {
+            try {
+                const r = await fetch('/api/timeline');
+                const d = await r.json();
+                renderStats(d.timeline);
+                renderYears(d.timeline);
+            } catch(e) { console.error(e); }
+        }
+
+        function renderStats(tl) {
+            const total = tl.reduce((s,i) => s + i.count, 0);
+            const years = [...new Set(tl.map(i => i.year))].length;
+            document.getElementById('statTotal').textContent = total || '—';
+            document.getElementById('statYears').textContent = years || '—';
+            document.getElementById('statMonths').textContent = tl.length || '—';
+        }
+
+        function renderYears(tl) {
+            const years = [...new Set(tl.map(i => i.year))].sort((a,b) => b - a);
+            document.getElementById('yearList').innerHTML = years.map(y => {
+                const c = tl.filter(i => i.year == y).reduce((s,i) => s + i.count, 0);
+                return `<button class="year-btn${curYear == y ? ' active' : ''}" onclick="setYear(${y})">${y} <span style="opacity:.5;font-size:.72rem">(${c})</span></button>`;
+            }).join('');
+        }
+
+        async function loadMedia() {
+            let url = '/api/photos?limit=2000';
+            if (curYear) url += `&year=${curYear}`;
+            if (curType !== 'all') url += `&type=${curType}`;
+            try {
+                const r = await fetch(url);
+                const d = await r.json();
+                allMedia = d.photos;
+                displayedMedia = [...allMedia];
+                renderTimeline();
+            } catch(e) { console.error(e); }
+        }
+
+        function renderTimeline() {
+            const el = document.getElementById('timeline');
+            if (displayedMedia.length === 0) {
+                el.innerHTML = `<div class="empty"><div class="empty-icon">□</div><h3>暂无内容</h3><p>点击右上角「上传」添加照片或视频</p></div>`;
+                return;
+            }
+            const groups = {};
+            displayedMedia.forEach(m => {
+                const d = new Date(m.taken_at);
+                const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+                if (!groups[key]) groups[key] = [];
+                groups[key].push(m);
+            });
+            let html = '';
+            Object.keys(groups).sort().reverse().forEach(key => {
+                const [y, m] = key.split('-');
+                const list = groups[key];
+                html += `<div class="timeline-section">
+                    <div class="timeline-header">
+                        <h3>${y} · ${MONTHS[parseInt(m)-1]}</h3>
+                        <div class="line"></div>
+                        <span class="count">${list.length} 项</span>
+                    </div>
+                    <div class="media-grid${selectMode ? ' select-mode' : ''}">${list.map((media, i) => {
+                        const gIdx = displayedMedia.indexOf(media);
+                        const isVid = media.file_type === 'video';
+                        const src = `/thumbnails/${media.filename}`;
+                        const isSelected = selectedIds.has(media.id);
+                        const cardClass = `media-card${isSelected ? ' selected' : ''}${isVid ? ' video-card' : ''}`;
+                        if (isVid) {
+                            return `<div class="${cardClass}" onclick="toggleSelect(${media.id}, ${gIdx})">
+                                <div class="check-overlay"></div>
+                                <div class="video-thumb">
+                                    <div class="play-icon"></div>
+                                </div>
+                            </div>`;
+                        }
+                        return `<div class="${cardClass}" onclick="toggleSelect(${media.id}, ${gIdx})">
+                            <div class="check-overlay"></div>
+                            <img class="thumb" src="${src}" loading="lazy">
+                        </div>`;
+                    }).join('')}</div></div>`;
+            });
+            el.innerHTML = html;
+            updateSelectUI();
+        }
+
+        function fmtDate(s) {
+            const d = new Date(s);
+            return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+        }
+
+        function setType(t) {
+            curType = t;
+            document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+            event.target.classList.add('active');
+            loadMedia();
+        }
+
+        function setYear(y) {
+            curYear = curYear === y ? null : y;
+            loadTimeline();
+            loadMedia();
+        }
+
+        // Lightbox
+        function openLb(idx) {
+            curIndex = idx;
+            const m = displayedMedia[idx];
+            const isVid = m.file_type === 'video';
+            document.getElementById('lbMedia').innerHTML = isVid
+                ? `<video class="lb-media" src="/videos/${m.filename}" controls autoplay></video>`
+                : `<img class="lb-media" src="/photos/${m.filename}" alt="">`;
+            document.getElementById('lbDate').textContent = fmtDate(m.taken_at);
+            document.getElementById('lbDesc').value = m.description || '';
+            document.getElementById('lightbox').dataset.id = m.id;
+            // GPS 坐标
+            const gpsEl = document.getElementById('lbGps');
+            if (m.latitude && m.longitude) {
+                gpsEl.innerHTML = `<a href="https://www.openstreetmap.org/?mlat=${m.latitude}&mlon=${m.longitude}&zoom=15" target="_blank" rel="noopener">📍 在地图中查看</a>`;
+            } else {
+                gpsEl.innerHTML = '';
+            }
+            document.getElementById('lightbox').classList.add('active');
+        }
+
+        function closeLb() {
+            const v = document.querySelector('#lbMedia video');
+            if (v) v.pause();
+            document.getElementById('lightbox').classList.remove('active');
+        }
+
+        function navigate(dir) {
+            curIndex = (curIndex + dir + displayedMedia.length) % displayedMedia.length;
+            openLb(curIndex);
+        }
+
+        // Multi-select mode
+        let selectMode = false;
+        let selectedIds = new Set();
+
+        function toggleSelectMode() {
+            selectMode = !selectMode;
+            if (selectMode) {
+                selectedIds.clear();
+            }
+            renderTimeline();
+        }
+
+        function toggleSelect(id, idx) {
+            if (!selectMode) {
+                openLb(idx);
+                return;
+            }
+            if (selectedIds.has(id)) {
+                selectedIds.delete(id);
+            } else {
+                selectedIds.add(id);
+            }
+            renderTimeline();
+        }
+
+        function updateSelectUI() {
+            const selectBtn = document.getElementById('selectBtn');
+            const deleteBtn = document.getElementById('deleteSelectedBtn');
+            selectBtn.classList.toggle('active', selectMode);
+            selectBtn.textContent = selectMode ? '取消' : '选择';
+            deleteBtn.classList.toggle('show', selectedIds.size > 0);
+            if (selectedIds.size > 0) {
+                deleteBtn.textContent = `删除已选 (${selectedIds.size})`;
+            }
+        }
+
+        let deleteConfirmCount = 0;
+
+        function startBatchDelete() {
+            if (selectedIds.size === 0) return;
+            deleteConfirmCount = 0;
+            document.getElementById('deleteModalTitle').textContent = `确认删除 ${selectedIds.size} 个文件？`;
+            document.getElementById('deletePasswordInput').value = '';
+            document.getElementById('deletePasswordInput').placeholder = '密码';
+            document.getElementById('deleteError').textContent = '';
+            document.getElementById('deleteModal').classList.add('active');
+            document.getElementById('deletePasswordInput').focus();
+        }
+
+        const DELETE_PASSWORD = '231109';
+
+        function startDelete() {
+            deleteConfirmCount = 0;
+            document.getElementById('deleteModalTitle').textContent = '请输入密码';
+            document.getElementById('deletePasswordInput').value = '';
+            document.getElementById('deleteError').textContent = '';
+            document.getElementById('deleteModal').classList.add('active');
+            document.getElementById('deletePasswordInput').focus();
+        }
+
+        function sharePage() {
+            const shareData = {
+                title: '成长记录',
+                text: '来看看我的成长记录',
+                url: window.location.origin
+            };
+
+            if (navigator.share) {
+                navigator.share(shareData).then(() => {
+                    showToast('分享成功！');
+                }).catch(() => {});
+            } else {
+                // 不支持则提示手动复制
+                showToast('请复制浏览器地址栏链接分享给好友');
+            }
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('shareToast');
+            toast.textContent = msg;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+
+        function closeDeleteModal() {
+            document.getElementById('deleteModal').classList.remove('active');
+        }
+
+        function submitDelete() {
+            const input = document.getElementById('deletePasswordInput');
+            const error = document.getElementById('deleteError');
+            const title = document.getElementById('deleteModalTitle');
+
+            if (deleteConfirmCount === 0) {
+                // 第一次：验证密码
+                if (input.value !== DELETE_PASSWORD) {
+                    error.textContent = '密码错误';
+                    input.value = '';
+                    return;
+                }
+                // 密码正确，进入确认阶段
+                deleteConfirmCount = 1;
+                title.textContent = '确认删除？输入 "delete"';
+                input.value = '';
+                input.placeholder = '输入 delete';
+                error.textContent = '';
+                return;
+            }
+
+            if (deleteConfirmCount === 1) {
+                // 第二次：确认删除
+                if (input.value.toLowerCase() !== 'delete') {
+                    error.textContent = '输入不正确';
+                    return;
+                }
+                // 执行删除
+                doDelete();
+                return;
+            }
+        }
+
+        async function doDelete() {
+            const id = document.getElementById('lightbox').dataset.id;
+            const isBatch = selectedIds.size > 0;
+            const idsToDelete = isBatch ? [...selectedIds] : [parseInt(id)];
+
+            closeDeleteModal();
+            if (!isBatch) closeLb();
+
+            for (const delId of idsToDelete) {
+                try {
+                    await fetch(`/api/photos/${delId}`, { method: 'DELETE' });
+                } catch(e) {
+                    console.error(e);
+                }
+            }
+
+            selectedIds.clear();
+            selectMode = false;
+            loadTimeline();
+            loadMedia();
+        }
+
+        // 回车提交密码
+        document.getElementById('deletePasswordInput').addEventListener('keydown', e => {
+            if (e.key === 'Enter') submitDelete();
+        });
+
+        async function saveDesc() {
+            const id = document.getElementById('lightbox').dataset.id;
+            const desc = document.getElementById('lbDesc').value;
+            try {
+                await fetch(`/api/photos/${id}`, {
+                    method: 'PUT',
+                    headers: {'Content-Type':'application/json'},
+                    body: JSON.stringify({description: desc})
+                });
+                loadMedia();
+            } catch(e) { console.error(e); }
+        }
+
+        document.addEventListener('keydown', e => {
+            if (!document.getElementById('lightbox').classList.contains('active')) return;
+            if (e.key === 'Escape') closeLb();
+            if (e.key === 'ArrowLeft') navigate(-1);
+            if (e.key === 'ArrowRight') navigate(1);
+        });
+
+        function toggleMenu() {
+            document.getElementById('menuDropdown').classList.toggle('show');
+        }
+        document.addEventListener('click', e => {
+            if (!e.target.closest('.menu-btn') && !e.target.closest('.menu-dropdown')) {
+                document.getElementById('menuDropdown').classList.remove('show');
+            }
+        });
+
+        // Upload
+        function openUpload() {
+            document.getElementById('uploadModal').classList.add('active');
+            document.getElementById('uploadProgress').classList.remove('active');
+            document.getElementById('uploadResult').className = '';
+            document.getElementById('uploadResult').textContent = '';
+            document.getElementById('videoDateRow').classList.remove('visible');
+            document.getElementById('videoDateInput').value = '';
+            document.getElementById('fileInput').value = '';
+            pendingFiles = null;
+            document.getElementById('confirmUploadBtn').style.display = 'none';
+        }
+
+        function closeUpload() {
+            document.getElementById('uploadModal').classList.remove('active');
+            document.getElementById('fileInput').value = '';
+            pendingFiles = null;
+        }
+
+        const dz = document.getElementById('dropZone');
+        dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('dragover'); });
+        dz.addEventListener('dragleave', () => dz.classList.remove('dragover'));
+        dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('dragover'); if(e.dataTransfer.files.length) handleFileSelect(e.dataTransfer.files); });
+        document.getElementById('fileInput').addEventListener('change', function() { if(this.files.length) handleFileSelect(this.files); });
+        document.getElementById('uploadModal').addEventListener('click', e => { if(e.target.id === 'uploadModal') closeUpload(); });
+
+        function handleFileSelect(files) {
+            pendingFiles = files;
+            const hasVideo = [...files].some(f => f.type.startsWith('video/'));
+            const dateRow = document.getElementById('videoDateRow');
+            dateRow.classList.toggle('visible', hasVideo);
+            document.getElementById('confirmUploadBtn').style.display = 'inline-flex';
+            document.getElementById('confirmUploadBtn').textContent = `确认上传 ${files.length} 个文件`;
+        }
+
+        function confirmUpload() {
+            if (!pendingFiles) return;
+            const files = pendingFiles;
+            const fd = new FormData();
+            for (const f of files) fd.append('files', f);
+
+            const dateInput = document.getElementById('videoDateInput');
+            if (dateInput.value) fd.append('taken_at', dateInput.value + 'T12:00:00');
+
+            const pb = document.getElementById('progressBar');
+            const pt = document.getElementById('progressText');
+            const up = document.getElementById('uploadProgress');
+            const ur = document.getElementById('uploadResult');
+            up.classList.add('active'); ur.className = ''; ur.textContent = '';
+            pb.style.width = '0%';
+            pt.textContent = `正在上传 ${files.length} 个文件...`;
+            document.getElementById('confirmUploadBtn').style.display = 'none';
+
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', '/api/upload');
+            xhr.upload.addEventListener('progress', e => {
+                if (e.lengthComputable) { const pct = Math.round((e.loaded/e.total)*100); pb.style.width = pct+'%'; pt.textContent = `上传中... ${pct}%`; }
+            });
+            xhr.addEventListener('load', () => {
+                pb.style.width = '100%';
+                if (xhr.status === 200) {
+                    const d = JSON.parse(xhr.responseText);
+                    pt.textContent = '完成';
+                    let msg = '';
+                    if (d.total > 0) msg += `✓ 成功 ${d.total} 个`;
+                    if (d.errors && d.errors.length) msg += (msg?'\n':'') + `⚠ ${d.errors.length} 个跳过`;
+                    ur.textContent = msg;
+                    ur.className = d.total > 0 ? 'success' : 'error';
+                    setTimeout(() => { closeUpload(); loadTimeline(); loadMedia(); }, 1600);
+                } else {
+                    pt.textContent = '失败'; ur.className = 'error'; ur.textContent = '上传失败，请重试';
+                    document.getElementById('confirmUploadBtn').style.display = 'inline-flex';
+                }
+            });
+            xhr.addEventListener('error', () => { pt.textContent = '网络错误'; ur.className = 'error'; ur.textContent = '网络连接失败'; document.getElementById('confirmUploadBtn').style.display = 'inline-flex'; });
+            xhr.send(fd);
+            pendingFiles = null;
+        }
+
+        function upload(files) { handleFileSelect(files); } // backward compat
+
+        // Back to top
+        window.addEventListener('scroll', () => {
+            document.getElementById('backTop').classList.toggle('visible', window.scrollY > 400);
+        });
+
+        loadTimeline();
+        loadMedia();
+    </script>
+</body>
+</html>
