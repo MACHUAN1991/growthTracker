@@ -82,7 +82,6 @@ def get_photo_date(filepath):
 
 def get_video_date(filepath):
     """从 MP4/MOV 的 moov/mvhd 原子中提取真正的创建日期"""
-    QUICKTIME_EPOCH = datetime(1904, 1, 1)
     try:
         with open(filepath, 'rb') as f:
             data = f.read()
@@ -109,6 +108,9 @@ def get_video_date(filepath):
                     creation_ts = struct.unpack('>Q', mvhd_data[8:16])[0]
                 # 转换: QuickTime epoch (1904) -> Unix epoch (1970)
                 unix_ts = creation_ts - 2082844800
+                # creation_ts=0 或负数说明元数据无效，直接用 mtime
+                if unix_ts <= 0:
+                    break
                 return datetime.fromtimestamp(unix_ts).isoformat()
             pos += atom_size
         return datetime.fromtimestamp(os.path.getmtime(filepath)).isoformat()
@@ -116,30 +118,117 @@ def get_video_date(filepath):
         print(f"解析视频日期失败: {e}")
         return datetime.fromtimestamp(os.path.getmtime(filepath)).isoformat()
 
+def _to_decimal_dms(coord, ref):
+    """将 ((度,度分母),(分,分分母),(秒,秒分母)) 转为十进制度"""
+    try:
+        degrees = coord[0][0] / coord[0][1]
+        minutes = coord[1][0] / coord[1][1]
+        seconds = coord[2][0] / coord[2][1]
+    except (ZeroDivisionError, IndexError, TypeError, ValueError):
+        return None
+    decimal = degrees + minutes / 60 + seconds / 3600
+    # ref 可能是 bytes 或 int
+    if isinstance(ref, bytes):
+        ref_char = ref[0:1]
+    elif isinstance(ref, int):
+        # 1=N/S, 3=E/W（IFD tag编号），但这里实际收到的是 tag 值，不是编号
+        # GPSInteroperabilityTagRef: 78='N', 83='S', 69='E', 87='W'
+        ref_char = bytes([ref]) if ref in (78, 83, 69, 87) else b'N'
+    else:
+        ref_char = b'N'
+    if ref_char in (b'S', b'W'):
+        decimal = -decimal
+    return decimal
+
+def _to_decimal_single(coord, ref):
+    """将 (度小数, 分母) 格式或直接度数字转为十进制度"""
+    try:
+        if len(coord) == 1:
+            decimal = coord[0][0] / coord[0][1]
+        elif len(coord) == 2:
+            # 可能是 (度, 度分母) 直接度格式
+            decimal = coord[0][0] / coord[0][1]
+        else:
+            return None
+    except (ZeroDivisionError, IndexError, TypeError, ValueError):
+        return None
+    if isinstance(ref, bytes):
+        ref_char = ref[0:1]
+    elif isinstance(ref, int):
+        ref_char = bytes([ref]) if ref in (78, 83, 69, 87) else b'N'
+    else:
+        ref_char = b'N'
+    if ref_char in (b'S', b'W'):
+        decimal = -decimal
+    return decimal
+
 def get_photo_gps(filepath):
     """从照片 EXIF 中提取 GPS 坐标，返回 (latitude, longitude) 或 (None, None)"""
     try:
         exif_dict = piexif.load(str(filepath))
         gps = exif_dict.get('GPS', {})
-        lat = gps.get(2)  # GPSLatitude
-        lon = gps.get(4)  # GPSLongitude
-        lat_ref = gps.get(1, b'N')
-        lon_ref = gps.get(3, b'E')
+        if not gps:
+            return None, None
+
+        # 尝试多种 tag key 格式（piexif 版本差异）
+        lat = gps.get(2) or gps.get(b'2') or gps.get('GPSLatitude')
+        lon = gps.get(4) or gps.get(b'4') or gps.get('GPSLongitude')
+        lat_ref = gps.get(1) or gps.get(b'1') or gps.get('GPSLatitudeRef')
+        lon_ref = gps.get(3) or gps.get(b'3') or gps.get('GPSLongitudeRef')
+
+        if lat_ref is None:
+            lat_ref = b'N'
+        if lon_ref is None:
+            lon_ref = b'E'
 
         if lat is None or lon is None:
             return None, None
 
-        # 转换：((度,1), (分,1), (秒,100)) -> 十进制度
-        def to_decimal(coord, ref):
-            degrees = coord[0][0] / coord[0][1]
-            minutes = coord[1][0] / coord[1][1]
-            seconds = coord[2][0] / coord[2][1]
-            decimal = degrees + minutes / 60 + seconds / 3600
-            if ref in (b'S', b'W'):
-                decimal = -decimal
-            return round(decimal, 6)
+        # 判断是 DMS 格式还是单个小数度格式
+        lat_dec = None
+        lon_dec = None
 
-        return to_decimal(lat, lat_ref), to_decimal(lon, lon_ref)
+        # 纬度
+        if isinstance(lat, tuple) and len(lat) >= 3:
+            lat_dec = _to_decimal_dms(lat, lat_ref)
+        elif isinstance(lat, tuple) and len(lat) == 1:
+            lat_dec = _to_decimal_single(lat, lat_ref)
+        elif isinstance(lat, (int, float)):
+            lat_dec = float(lat)
+            if isinstance(lat_ref, bytes):
+                ref_char = lat_ref[0:1]
+            elif isinstance(lat_ref, int):
+                ref_char = bytes([lat_ref]) if lat_ref in (78, 83) else b'N'
+            else:
+                ref_char = b'N'
+            if ref_char == b'S':
+                lat_dec = -lat_dec
+
+        # 经度
+        if isinstance(lon, tuple) and len(lon) >= 3:
+            lon_dec = _to_decimal_dms(lon, lon_ref)
+        elif isinstance(lon, tuple) and len(lon) == 1:
+            lon_dec = _to_decimal_single(lon, lon_ref)
+        elif isinstance(lon, (int, float)):
+            lon_dec = float(lon)
+            if isinstance(lon_ref, bytes):
+                ref_char = lon_ref[0:1]
+            elif isinstance(lon_ref, int):
+                ref_char = bytes([lon_ref]) if lon_ref in (69, 87) else b'E'
+            else:
+                ref_char = b'E'
+            if ref_char == b'W':
+                lon_dec = -lon_dec
+
+        # 校验范围
+        if lat_dec is None or lon_dec is None:
+            return None, None
+        if not (-90 <= lat_dec <= 90):
+            return None, None
+        if not (-180 <= lon_dec <= 180):
+            return None, None
+
+        return round(lat_dec, 6), round(lon_dec, 6)
     except Exception as e:
         print(f"Error getting GPS: {e}")
         return None, None

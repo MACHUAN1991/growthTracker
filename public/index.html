@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>成长记录</title>
+    <title>马莅格的成长记录</title>
     <style>
         :root {
             --bg: #f7f5f2;
@@ -638,22 +638,6 @@
         .upload-result { display: none; margin-top: 16px; padding: 12px 16px; border-radius: var(--radius); font-size: 0.82rem; }
         .upload-result.success { display: block; background: rgba(78, 201, 196, 0.1); border: 1px solid rgba(78, 201, 196, 0.3); color: #7eb8da; }
         .upload-result.error { display: block; background: rgba(255,107,107,0.1); border: 1px solid rgba(255,107,107,0.3); color: #e88; }
-        .video-date-row { display: none; margin-top: 16px; }
-        .video-date-row.visible { display: block; }
-        .video-date-label { font-size: 0.78rem; color: var(--text-dim); margin-bottom: 8px; }
-        .video-date-input {
-            width: 100%;
-            background: var(--bg-elevated);
-            border: 1px solid var(--border);
-            color: var(--text);
-            padding: 9px 14px;
-            border-radius: var(--radius);
-            font-size: 0.85rem;
-            font-family: inherit;
-            transition: var(--transition);
-            color-scheme: light;
-        }
-        .video-date-input:focus { outline: none; border-color: var(--accent); }
         .confirm-upload-btn {
             display: none;
             width: 100%;
@@ -711,7 +695,7 @@
 
     <header class="header">
         <div class="header-left">
-            <h1>成长记录</h1>
+            <h1>马莅格的成长记录</h1>
             <div class="subtitle">Memory Archive</div>
         </div>
         <div class="header-right" style="position: relative;">
@@ -721,7 +705,7 @@
             <button class="upload-btn" onclick="openUpload()">+ 上传</button>
             <button class="menu-btn" onclick="toggleMenu()">☰</button>
             <div class="menu-dropdown" id="menuDropdown">
-                <div class="menu-item" onclick="location.href='/'">📷 成长记录</div>
+                <div class="menu-item" onclick="location.href='/'">📷 马莅格的成长记录</div>
                 <div class="menu-item" onclick="location.href='/joke'">😂 随机笑话</div>
             </div>
         </div>
@@ -786,10 +770,6 @@
                 <div class="dz-hint">JPG · PNG · GIF · WEBP · MP4 · MOV</div>
             </div>
             <input type="file" class="upload-file-input" id="fileInput" multiple accept="image/*,video/*">
-            <div class="video-date-row" id="videoDateRow">
-                <div class="video-date-label">视频拍摄日期（元数据缺失时手动填写）</div>
-                <input type="date" class="video-date-input" id="videoDateInput">
-            </div>
             <button class="confirm-upload-btn" id="confirmUploadBtn" onclick="confirmUpload()">确认上传</button>
             <div class="upload-progress" id="uploadProgress">
                 <div class="progress-bar-wrap"><div class="progress-bar" id="progressBar"></div></div>
@@ -1004,8 +984,8 @@
 
         function sharePage() {
             const shareData = {
-                title: '成长记录',
-                text: '来看看我的成长记录',
+                title: '马莅格的成长记录',
+                text: '来看看马莅格的成长记录',
                 url: window.location.origin
             };
 
@@ -1125,8 +1105,6 @@
             document.getElementById('uploadProgress').classList.remove('active');
             document.getElementById('uploadResult').className = '';
             document.getElementById('uploadResult').textContent = '';
-            document.getElementById('videoDateRow').classList.remove('visible');
-            document.getElementById('videoDateInput').value = '';
             document.getElementById('fileInput').value = '';
             pendingFiles = null;
             document.getElementById('confirmUploadBtn').style.display = 'none';
@@ -1147,9 +1125,6 @@
 
         function handleFileSelect(files) {
             pendingFiles = files;
-            const hasVideo = [...files].some(f => f.type.startsWith('video/'));
-            const dateRow = document.getElementById('videoDateRow');
-            dateRow.classList.toggle('visible', hasVideo);
             document.getElementById('confirmUploadBtn').style.display = 'inline-flex';
             document.getElementById('confirmUploadBtn').textContent = `确认上传 ${files.length} 个文件`;
         }
@@ -1159,9 +1134,6 @@
             const files = pendingFiles;
             const fd = new FormData();
             for (const f of files) fd.append('files', f);
-
-            const dateInput = document.getElementById('videoDateInput');
-            if (dateInput.value) fd.append('taken_at', dateInput.value + 'T12:00:00');
 
             const pb = document.getElementById('progressBar');
             const pt = document.getElementById('progressText');
