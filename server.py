@@ -3,6 +3,7 @@ import sqlite3
 import traceback
 import struct
 import subprocess
+import threading
 from datetime import datetime
 from PIL import Image
 import piexif
@@ -631,12 +632,22 @@ def convert_to_h264(video_path):
             '-c:a', 'aac', '-b:a', '128k',
             str(h264_path)
         ]
-        result = subprocess.run(cmd, capture_output=True, timeout=300)
+        result = subprocess.run(cmd, capture_output=True, timeout=600)
         if result.returncode == 0 and h264_path.exists():
+            print(f"[OK] Converted {video_path.name} -> {h264_path.name}")
             return h264_path
+        else:
+            print(f"[FAIL] Conversion failed for {video_path.name}")
     except Exception as e:
-        print(f"H.264 conversion failed: {e}")
+        print(f"[ERROR] H.264 conversion failed: {e}")
     return None
+
+def convert_to_h264_async(video_path):
+    """后台异步转码 H.265 为 H.264"""
+    def _convert():
+        convert_to_h264(video_path)
+    thread = threading.Thread(target=_convert, daemon=True)
+    thread.start()
 
 @app.route('/api/upload', methods=['POST'])
 def upload_files():
@@ -675,9 +686,10 @@ def upload_files():
 
         f.save(save_path)
 
-        # 如果是 H.265 视频，自动转码为 H.264
+        # 如果是 H.265 视频，后台自动转码为 H.264
         if ext in VIDEO_EXTENSIONS and is_hevc_video(save_path):
-            convert_to_h264(save_path)
+            print(f"[INFO] H.265 detected, starting async conversion: {dest_name}")
+            convert_to_h264_async(save_path)
 
         # 确定拍摄日期：优先用用户指定的，否则从文件元数据提取
         if taken_at_override:
