@@ -6,7 +6,7 @@ from datetime import datetime
 from PIL import Image
 import piexif
 from pathlib import Path
-from flask import Flask, request, jsonify, send_from_directory, send_file
+from flask import Flask, request, jsonify, send_from_directory, send_file, Response
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
 
@@ -555,7 +555,45 @@ def serve_photo(filename):
 
 @app.route('/videos/<path:filename>')
 def serve_video(filename):
-    return send_from_directory(VIDEOS_DIR, filename)
+    video_path = VIDEOS_DIR / filename
+    if not video_path.exists():
+        return "File not found", 404
+
+    ext = video_path.suffix.lower()
+    mime_types = {
+        '.mp4': 'video/mp4',
+        '.mov': 'video/quicktime',
+        '.avi': 'video/x-msvideo',
+        '.mkv': 'video/x-matroska',
+        '.webm': 'video/webm',
+    }
+    mime_type = mime_types.get(ext, 'application/octet-stream')
+
+    file_size = video_path.stat().st_size
+    range_header = request.headers.get('Range')
+
+    if range_header:
+        # 支持 range request（桌面浏览器播放视频需要）
+        try:
+            range_match = range_header.replace('bytes=', '').split('-')
+            start = int(range_match[0]) if range_match[0] else 0
+            end = int(range_match[1]) if range_match[1] else file_size - 1
+        except ValueError:
+            start, end = 0, file_size - 1
+
+        length = end - start + 1
+        with open(video_path, 'rb') as f:
+            f.seek(start)
+            data = f.read(length)
+
+        resp = Response(data, status=206, mimetype=mime_type)
+        resp.headers['Content-Range'] = f'bytes {start}-{end}/{file_size}'
+        resp.headers['Accept-Ranges'] = 'bytes'
+        resp.headers['Content-Length'] = length
+        return resp
+    else:
+        # 无 range header 时直接返回整个文件
+        return send_from_directory(VIDEOS_DIR, filename)
 
 @app.route('/thumbnails/<path:filename>')
 def serve_thumbnail(filename):
