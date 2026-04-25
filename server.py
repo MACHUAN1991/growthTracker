@@ -244,6 +244,15 @@ def generate_thumbnail(source_path, filename):
     except Exception as e:
         print(f"Error generating thumbnail: {e}")
 
+def is_dolby_vision(video_path):
+    """检测视频是否为 Dolby Vision 编码"""
+    try:
+        with open(video_path, 'rb') as f:
+            data = f.read(1024)
+            return b'dby1' in data
+    except Exception:
+        return False
+
 def generate_video_thumbnail(source_path, filename):
     """用 ffmpeg 提取视频第1秒的画面，添加播放图标，返回缩略图路径"""
     import subprocess
@@ -251,6 +260,11 @@ def generate_video_thumbnail(source_path, filename):
 
     thumbnail_path = THUMBNAILS_DIR / filename
     frame_path = THUMBNAILS_DIR / f"{filename}_frame.jpg"
+
+    # Dolby Vision 视频 ffmpeg 处理会超时，跳过缩略图生成
+    if is_dolby_vision(source_path):
+        print(f"Skipping thumbnail for Dolby Vision: {filename}")
+        return False
 
     try:
         # 用 ffmpeg 提取第1秒的画面
@@ -375,9 +389,12 @@ def scan_photos():
                 if not thumb_path.exists():
                     generate_thumbnail(photo_file, photo_file.name)
     
-    # 处理视频文件
+    # 处理视频文件（排除 H.264 转码文件）
     for video_file in VIDEOS_DIR.glob("*"):
         if video_file.suffix.lower() in ['.mp4', '.mov', '.avi', '.mkv']:
+            # 跳过 H.264 转码文件
+            if video_file.stem.endswith('_h264'):
+                continue
             cursor.execute("SELECT id FROM photos WHERE filename = ?", (video_file.name,))
             if not cursor.fetchone():
                 # 对于视频，尝试从 MP4/MOV 元数据读取真实创建日期
@@ -558,12 +575,20 @@ def serve_photo(filename):
 @app.route('/videos/<path:filename>')
 def serve_video(filename):
     video_path = VIDEOS_DIR / filename
-    # 优先使用 H.264 版本（浏览器兼容性更好）
+    # 根据设备选择版本：手机播放原文件（H.265 原画），电脑用 H.264
     if video_path.suffix.lower() == '.mp4':
         h264_path = VIDEOS_DIR / (video_path.stem + '_h264.mp4')
         if h264_path.exists():
-            video_path = h264_path
-            filename = h264_path.name
+            user_agent = request.headers.get('User-Agent', '')
+            # 检测是否为手机设备
+            is_mobile = 'Mobile' in user_agent or 'Android' in user_agent or 'iPhone' in user_agent or 'iPad' in user_agent
+            if is_mobile:
+                # 手机用原文件（H.265 原画，更清晰）
+                pass
+            else:
+                # 电脑用 H.264（Chrome/Edge/Firefox 不支持 H.265）
+                video_path = h264_path
+                filename = h264_path.name
     if not video_path.exists():
         return "File not found", 404
 
@@ -612,11 +637,18 @@ PHOTO_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.gif', '.webp'}
 VIDEO_EXTENSIONS = {'.mp4', '.mov', '.avi', '.mkv'}
 
 def is_hevc_video(video_path):
-    """检测视频是否为 H.265/HEVC 编码"""
+    """检测视频是否为 H.265/HEVC 编码，使用 ffprobe 精确判断"""
     try:
-        with open(video_path, 'rb') as f:
-            data = f.read(1024 * 1024)  # 读取前1MB
-            return b'hvc1' in data or b'hev1' in data
+        cmd = [
+            'ffprobe', '-v', 'quiet',
+            '-select_streams', 'v:0',
+            '-show_entries', 'stream=codec_name',
+            '-of', 'csv=p=0',
+            str(video_path)
+        ]
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+        codec = result.stdout.strip().rstrip(',').lower()
+        return codec in ('hevc', 'h265')
     except Exception:
         return False
 
@@ -658,6 +690,7 @@ def upload_files():
     taken_at_override = request.form.get('taken_at')  # 可选：手动指定的拍摄日期
     uploaded = []
     errors = []
+    converting_files = []
 
     for f in files:
         if not f.filename:
@@ -686,10 +719,11 @@ def upload_files():
 
         f.save(save_path)
 
-        # 如果是 H.265 视频，后台自动转码为 H.264
+        # 如果是 H.265 视频，后台转码为 H.264
         if ext in VIDEO_EXTENSIONS and is_hevc_video(save_path):
             print(f"[INFO] H.265 detected, starting async conversion: {dest_name}")
             convert_to_h264_async(save_path)
+            converting_files.append(dest_name)
 
         # 确定拍摄日期：优先用用户指定的，否则从文件元数据提取
         if taken_at_override:
@@ -724,7 +758,8 @@ def upload_files():
     return jsonify({
         "uploaded": uploaded,
         "errors": errors,
-        "total": len(uploaded)
+        "total": len(uploaded),
+        "converting": converting_files
     })
 
 @app.route('/')

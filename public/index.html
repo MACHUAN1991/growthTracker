@@ -1376,6 +1376,7 @@
                     pt.textContent = '完成';
                     let msg = '';
                     if (d.total > 0) msg += `✓ 成功 ${d.total} 个`;
+                    if (d.converting && d.converting.length) msg += (msg?'\n':'') + `⏳ ${d.converting.length} 个视频正在转码，稍后可播放`;
                     if (d.errors && d.errors.length) msg += (msg?'\n':'') + `⚠ ${d.errors.length} 个跳过`;
                     ur.textContent = msg;
                     ur.className = d.total > 0 ? 'success' : 'error';
