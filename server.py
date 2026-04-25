@@ -2,6 +2,7 @@ import os
 import sqlite3
 import traceback
 import struct
+import subprocess
 from datetime import datetime
 from PIL import Image
 import piexif
@@ -556,6 +557,12 @@ def serve_photo(filename):
 @app.route('/videos/<path:filename>')
 def serve_video(filename):
     video_path = VIDEOS_DIR / filename
+    # 优先使用 H.264 版本（浏览器兼容性更好）
+    if video_path.suffix.lower() == '.mp4':
+        h264_path = VIDEOS_DIR / (video_path.stem + '_h264.mp4')
+        if h264_path.exists():
+            video_path = h264_path
+            filename = h264_path.name
     if not video_path.exists():
         return "File not found", 404
 
@@ -603,6 +610,34 @@ UPLOAD_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.gif', '.webp', '.mp4', '.mov', '
 PHOTO_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.gif', '.webp'}
 VIDEO_EXTENSIONS = {'.mp4', '.mov', '.avi', '.mkv'}
 
+def is_hevc_video(video_path):
+    """检测视频是否为 H.265/HEVC 编码"""
+    try:
+        with open(video_path, 'rb') as f:
+            data = f.read(1024 * 1024)  # 读取前1MB
+            return b'hvc1' in data or b'hev1' in data
+    except Exception:
+        return False
+
+def convert_to_h264(video_path):
+    """将 H.265 视频转码为 H.264，返回 H.264 文件路径"""
+    h264_path = video_path.parent / (video_path.stem + '_h264.mp4')
+    try:
+        cmd = [
+            'ffmpeg', '-y', '-loglevel', 'warning',
+            '-i', str(video_path),
+            '-c:v', 'libx264', '-crf', '28', '-preset', 'fast',
+            '-threads', '1', '-vf', 'scale=1280:720',
+            '-c:a', 'aac', '-b:a', '128k',
+            str(h264_path)
+        ]
+        result = subprocess.run(cmd, capture_output=True, timeout=300)
+        if result.returncode == 0 and h264_path.exists():
+            return h264_path
+    except Exception as e:
+        print(f"H.264 conversion failed: {e}")
+    return None
+
 @app.route('/api/upload', methods=['POST'])
 def upload_files():
     if 'files' not in request.files:
@@ -639,6 +674,10 @@ def upload_files():
                 counter += 1
 
         f.save(save_path)
+
+        # 如果是 H.265 视频，自动转码为 H.264
+        if ext in VIDEO_EXTENSIONS and is_hevc_video(save_path):
+            convert_to_h264(save_path)
 
         # 确定拍摄日期：优先用用户指定的，否则从文件元数据提取
         if taken_at_override:
