@@ -1276,7 +1276,7 @@
                     <div class="media-grid${selectMode ? ' select-mode' : ''}">${list.map((media, i) => {
                         const gIdx = displayedMedia.indexOf(media);
                         const isVid = media.file_type === 'video';
-                        const src = `/thumbnails/${media.filename}`;
+                        const src = `/thumbnails/${media.filename}?v=2`;
                         const isSelected = selectedIds.has(media.id);
                         const cardClass = `media-card${isSelected ? ' selected' : ''}${isVid ? ' video-card' : ''}`;
                         const dateStr = fmtDate(media.taken_at);
