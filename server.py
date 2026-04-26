@@ -275,11 +275,14 @@ def generate_video_thumbnail(source_path, filename):
     try:
         # 用 ffmpeg 提取第一帧画面
         cmd = [
-            'ffmpeg', '-y', '-i', str(source_path),
-            '-ss', '00:00:00',          # 第一帧
+            'ffmpeg', '-y',
+            '-ss', '00:00:00',          # 第一帧（放-i前快速定位）
+            '-i', str(source_path),
+            '-loglevel', 'error',
             '-vframes', '1',
             '-q:v', '2',
             '-vf', 'scale=300:-1',
+            '-update', '1',
             str(frame_path)
         ]
         result = subprocess.run(cmd, capture_output=True, timeout=30)
@@ -776,6 +779,8 @@ def upload_files():
         # 生成缩略图
         if ext in PHOTO_EXTENSIONS:
             generate_thumbnail(save_path, dest_name)
+        else:
+            generate_video_thumbnail(save_path, dest_name)
 
         uploaded.append(dest_name)
 
