@@ -272,11 +272,6 @@ def generate_video_thumbnail(source_path, filename):
     thumbnail_path = THUMBNAILS_DIR / filename
     frame_path = THUMBNAILS_DIR / f"{filename}_frame.jpg"
 
-    # Dolby Vision 视频 ffmpeg 处理会超时，跳过缩略图生成
-    if is_dolby_vision(source_path):
-        print(f"Skipping thumbnail for Dolby Vision: {filename}")
-        return False
-
     try:
         # 用 ffmpeg 提取第一帧画面
         cmd = [
@@ -289,7 +284,11 @@ def generate_video_thumbnail(source_path, filename):
         ]
         result = subprocess.run(cmd, capture_output=True, timeout=30)
         if result.returncode != 0 or not frame_path.exists():
-            print(f"ffmpeg failed: {result.stderr.decode()[:200]}")
+            msg = result.stderr.decode()[:200]
+            if is_dolby_vision(source_path):
+                print(f"Skipping thumbnail for Dolby Vision: {filename}")
+            else:
+                print(f"ffmpeg failed: {msg}")
             return False
 
         # 添加播放图标
@@ -332,7 +331,10 @@ def generate_video_thumbnail(source_path, filename):
         return True
 
     except subprocess.TimeoutExpired:
-        print("ffmpeg timeout")
+        if is_dolby_vision(source_path):
+            print(f"Skipping thumbnail for Dolby Vision (timeout): {filename}")
+        else:
+            print(f"ffmpeg timeout: {filename}")
         return False
     except Exception as e:
         print(f"Error generating video thumbnail: {e}")
