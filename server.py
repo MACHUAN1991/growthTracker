@@ -12,6 +12,7 @@ from flask_cors import CORS
 from werkzeug.utils import secure_filename
 
 app = Flask(__name__, static_folder='public')
+app.config['MAX_CONTENT_LENGTH'] = 1 * 1024 * 1024 * 1024  # 1GB
 CORS(app)
 
 @app.errorhandler(Exception)
@@ -94,38 +95,49 @@ def get_photo_date(filepath):
         return datetime.fromtimestamp(os.path.getmtime(filepath)).isoformat()
 
 def get_video_date(filepath):
-    """从 MP4/MOV 的 moov/mvhd 原子中提取真正的创建日期"""
+    """从 MP4/MOV 的 moov/mvhd 原子中提取创建日期（流式解析，不加载整个文件）"""
     try:
+        fsize = os.path.getsize(filepath)
         with open(filepath, 'rb') as f:
-            data = f.read()
-        # 查找 moov 原子
-        moov_pos = data.find(b'moov')
-        if moov_pos == -1:
-            return datetime.fromtimestamp(os.path.getmtime(filepath)).isoformat()
-        moov_start = moov_pos
-        # 解析 moov 子原子，找到 mvhd
-        pos = moov_start + 4
-        while pos < len(data) - 8:
-            # 读取原子大小和类型
-            atom_size = struct.unpack('>I', data[pos:pos+4])[0]
-            atom_type = data[pos+4:pos+8]
-            if atom_size < 8 or atom_size > len(data) - pos:
-                break
-            if atom_type == b'mvhd':
-                # mvhd 结构: version(1) + flags(3) + creation_time(4) + modification_time(4) + timescale(4) + duration(4)
-                mvhd_data = data[pos+8:pos+atom_size]
-                version = mvhd_data[0]
-                if version == 0:
-                    creation_ts = struct.unpack('>I', mvhd_data[4:8])[0]
-                else:
-                    creation_ts = struct.unpack('>Q', mvhd_data[8:16])[0]
-                # 转换: QuickTime epoch (1904) -> Unix epoch (1970)
-                unix_ts = creation_ts - 2082844800
-                # creation_ts=0 或负数说明元数据无效，直接用 mtime
-                if unix_ts <= 0:
+            # 遍历顶级 atoms，跳过 mdat 等大数据块
+            pos = 0
+            while pos + 8 <= fsize:
+                f.seek(pos)
+                atom_size = struct.unpack('>I', f.read(4))[0]
+                atom_type = f.read(4)
+                if atom_size < 8:
                     break
-                return datetime.fromtimestamp(unix_ts).isoformat()
-            pos += atom_size
+                is_64bit = (atom_size == 1)
+                if is_64bit:
+                    f.seek(pos + 8)
+                    atom_size = struct.unpack('>Q', f.read(8))[0]
+
+                if atom_type == b'moov':
+                    # 读取完整的 moov 内容，在其子原子中找 mvhd
+                    header_size = 16 if is_64bit else 8
+                    moov_data_size = min(atom_size, 2 * 1024 * 1024)  # moov 通常 < 100KB
+                    f.seek(pos + header_size)
+                    moov_body = f.read(moov_data_size - header_size)
+
+                    inner = 0
+                    while inner + 8 < len(moov_body):
+                        sub_size = struct.unpack('>I', moov_body[inner:inner+4])[0]
+                        sub_type = moov_body[inner+4:inner+8]
+                        if sub_size < 8:
+                            break
+                        if sub_type == b'mvhd':
+                            mvhd = moov_body[inner+8:inner+sub_size]
+                            ver = mvhd[0]
+                            ts = struct.unpack('>I', mvhd[4:8])[0] if ver == 0 else struct.unpack('>Q', mvhd[4:12])[0]
+                            unix_ts = ts - 2082844800  # QuickTime -> Unix epoch
+                            if unix_ts > 0:
+                                return datetime.fromtimestamp(unix_ts).isoformat()
+                            break
+                        inner += sub_size
+                    break  # moov 已处理
+
+                pos += atom_size
+
         return datetime.fromtimestamp(os.path.getmtime(filepath)).isoformat()
     except Exception as e:
         print(f"解析视频日期失败: {e}")
@@ -265,8 +277,7 @@ def is_dolby_vision(video_path):
         return False
 
 def generate_video_thumbnail(source_path, filename):
-    """用 ffmpeg 提取视频第1秒的画面，添加播放图标，返回缩略图路径"""
-    import subprocess
+    """用 ffmpeg 提取视频第1帧作为缩略图"""
     import shutil
 
     thumbnail_path = THUMBNAILS_DIR / filename
@@ -654,10 +665,12 @@ def serve_video(filename):
     if range_header:
         # 支持 range request（桌面浏览器播放视频需要）
         try:
-            range_match = range_header.replace('bytes=', '').split('-')
+            # 只处理第一个 range，忽略多范围请求
+            range_val = range_header.replace('bytes=', '').split(',')[0].strip()
+            range_match = range_val.split('-')
             start = int(range_match[0]) if range_match[0] else 0
             end = int(range_match[1]) if range_match[1] else file_size - 1
-        except ValueError:
+        except (ValueError, IndexError):
             start, end = 0, file_size - 1
 
         length = end - start + 1
@@ -779,7 +792,7 @@ if __name__ == '__main__':
     init_db()
     scan_photos()
     print("Server starting on http://localhost:8000")
-    app.run(host='0.0.0.0', port=8000, debug=True)
+    app.run(host='0.0.0.0', port=8000, debug=False)
 else:
     # gunicorn 或其他 wsgi 服务器加载时也执行初始化
     init_db()

@@ -645,7 +645,7 @@
             }
             empty.style.display = 'none';
             tbody.innerHTML = records.map(r => {
-                const ageStr = r.age_months !== null ? r.age_months.toFixed(1) + ' 月' : (birthDate ? dateToMonths(r.record_date, birthDate)?.toFixed(1) + ' 月' || '—' : '—');
+                const ageStr = r.age_months !== null ? r.age_months.toFixed(1) + ' 月' : (birthDate ? (() => { const am = dateToMonths(r.record_date, birthDate); return am !== null && am !== undefined ? am.toFixed(1) + ' 月' : '—'; })() : '—');
                 return `<tr>
                     <td>${formatDate(r.record_date)}</td>
                     <td>${ageStr}</td>

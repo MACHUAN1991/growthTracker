@@ -4,7 +4,6 @@
 每次上传前删除远程文件，确保真正写入。
 """
 
-import os
 import sys
 import hashlib
 import paramiko

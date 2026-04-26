@@ -1265,16 +1265,20 @@
                 return;
             }
             const groups = {};
-            displayedMedia.forEach(m => {
+            const indices = {};
+            displayedMedia.forEach((m, idx) => {
                 const d = new Date(m.taken_at);
+                if (isNaN(d.getTime())) return;
                 const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
-                if (!groups[key]) groups[key] = [];
+                if (!groups[key]) { groups[key] = []; indices[key] = []; }
                 groups[key].push(m);
+                indices[key].push(idx);
             });
             let html = '';
             Object.keys(groups).sort().reverse().forEach(key => {
                 const [y, m] = key.split('-');
                 const list = groups[key];
+                const listIdx = indices[key];
                 html += `<div class="timeline-section">
                     <div class="timeline-header">
                         <h3>${y}年 ${MONTHS[parseInt(m)-1]}</h3>
@@ -1282,7 +1286,7 @@
                         <span class="tl-count">${list.length} 项</span>
                     </div>
                     <div class="media-grid${selectMode ? ' select-mode' : ''}">${list.map((media, i) => {
-                        const gIdx = displayedMedia.indexOf(media);
+                        const gIdx = listIdx[i];
                         const isVid = media.file_type === 'video';
                         const src = `/thumbnails/${media.filename}?v=3`;
                         const isSelected = selectedIds.has(media.id);
@@ -1411,7 +1415,7 @@
         function sharePage() {
             const shareData = { title: '马莅格的成长记录', text: '来看看马莅格的成长记录', url: window.location.origin };
             if (navigator.share) {
-                navigator.share(shareData).then(() => showToast('分享成功！')).catch(() => {});
+                navigator.share(shareData).then(() => showToast('分享成功！')).catch(e => console.error('分享失败:', e));
             } else {
                 showToast('请复制浏览器地址栏链接分享给好友');
             }
@@ -1551,6 +1555,7 @@
         // Back to top
         window.addEventListener('scroll', () => {
             document.getElementById('backTop').classList.toggle('visible', window.scrollY > 400);
+        }, { passive: true });
         });
 
         // Init
