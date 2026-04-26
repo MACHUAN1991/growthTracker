@@ -1228,7 +1228,13 @@
             const years = [...new Set(tl.map(i => i.year))].length;
             document.getElementById('statTotal').textContent = total || '—';
             document.getElementById('statYears').textContent = years || '—';
-            document.getElementById('statMonths').textContent = tl.length || '—';
+            // 跨越月份 = 最早照片到最晚照片的总月数
+            if (tl.length > 0) {
+                const nums = tl.map(i => parseInt(i.year) * 12 + parseInt(i.month));
+                document.getElementById('statMonths').textContent = Math.max(...nums) - Math.min(...nums) + 1;
+            } else {
+                document.getElementById('statMonths').textContent = '—';
+            }
         }
 
         function renderYears(tl) {
