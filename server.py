@@ -627,25 +627,6 @@ def delete_growth(record_id):
     conn.close()
     return jsonify({"message": "Deleted successfully"})
 
-@app.route('/api/milestones', methods=['GET'])
-def list_milestones():
-    conn = get_db()
-    cursor = conn.cursor()
-    cursor.execute("SELECT id, title, category, description, milestone_date, age_months, photo_filename, created_at FROM milestones ORDER BY milestone_date ASC")
-    records = []
-    for row in cursor.fetchall():
-        records.append({
-            "id": row[0],
-            "title": row[1],
-            "category": row[2],
-            "description": row[3],
-            "milestone_date": row[4],
-            "age_months": row[5],
-            "photo_filename": row[6],
-            "created_at": row[7]
-        })
-    conn.close()
-
 @app.route('/api/photos/map', methods=['GET'])
 def list_map_photos():
     year = request.args.get('year')
