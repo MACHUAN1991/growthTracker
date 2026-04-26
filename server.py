@@ -3,7 +3,6 @@ import sqlite3
 import traceback
 import struct
 import subprocess
-import threading
 from datetime import datetime
 from PIL import Image
 import piexif
@@ -49,6 +48,31 @@ def init_db():
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )
     """)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS growth_records (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            record_date DATE NOT NULL,
+            age_months REAL,
+            height REAL,
+            weight REAL,
+            notes TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_growth_date ON growth_records(record_date)")
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS milestones (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            title TEXT NOT NULL,
+            category TEXT,
+            description TEXT,
+            milestone_date DATE NOT NULL,
+            age_months REAL,
+            photo_filename TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_milestone_date ON milestones(milestone_date)")
     # 尝试添加坐标字段（兼容已有数据库）
     try:
         conn.execute("ALTER TABLE photos ADD COLUMN latitude REAL")
@@ -389,12 +413,9 @@ def scan_photos():
                 if not thumb_path.exists():
                     generate_thumbnail(photo_file, photo_file.name)
     
-    # 处理视频文件（排除 H.264 转码文件）
+    # 处理视频文件
     for video_file in VIDEOS_DIR.glob("*"):
         if video_file.suffix.lower() in ['.mp4', '.mov', '.avi', '.mkv']:
-            # 跳过 H.264 转码文件
-            if video_file.stem.endswith('_h264'):
-                continue
             cursor.execute("SELECT id FROM photos WHERE filename = ?", (video_file.name,))
             if not cursor.fetchone():
                 # 对于视频，尝试从 MP4/MOV 元数据读取真实创建日期
@@ -568,6 +589,159 @@ def delete_photo(photo_id):
 
     return jsonify({"message": "Deleted successfully"})
 
+@app.route('/api/growth', methods=['GET'])
+def list_growth():
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT id, record_date, age_months, height, weight, notes, created_at FROM growth_records ORDER BY record_date ASC")
+    records = []
+    for row in cursor.fetchall():
+        records.append({
+            "id": row[0],
+            "record_date": row[1],
+            "age_months": row[2],
+            "height": row[3],
+            "weight": row[4],
+            "notes": row[5],
+            "created_at": row[6]
+        })
+    conn.close()
+    return jsonify({"records": records})
+
+@app.route('/api/growth', methods=['POST'])
+def add_growth():
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": "No data provided"}), 400
+    record_date = data.get('record_date')
+    height = data.get('height')
+    weight = data.get('weight')
+    age_months = data.get('age_months')
+    notes = data.get('notes', '')
+    if not record_date:
+        return jsonify({"error": "record_date is required"}), 400
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute(
+        "INSERT INTO growth_records (record_date, age_months, height, weight, notes) VALUES (?, ?, ?, ?, ?)",
+        (record_date, age_months, height, weight, notes)
+    )
+    conn.commit()
+    new_id = cursor.lastrowid
+    conn.close()
+    return jsonify({"message": "Record added", "id": new_id}), 201
+
+@app.route('/api/growth/<int:record_id>', methods=['DELETE'])
+def delete_growth(record_id):
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM growth_records WHERE id = ?", (record_id,))
+    conn.commit()
+    conn.close()
+    return jsonify({"message": "Deleted successfully"})
+
+@app.route('/api/milestones', methods=['GET'])
+def list_milestones():
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT id, title, category, description, milestone_date, age_months, photo_filename, created_at FROM milestones ORDER BY milestone_date ASC")
+    records = []
+    for row in cursor.fetchall():
+        records.append({
+            "id": row[0],
+            "title": row[1],
+            "category": row[2],
+            "description": row[3],
+            "milestone_date": row[4],
+            "age_months": row[5],
+            "photo_filename": row[6],
+            "created_at": row[7]
+        })
+    conn.close()
+    return jsonify({"milestones": records})
+
+@app.route('/api/milestones', methods=['POST'])
+def add_milestone():
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": "No data provided"}), 400
+    title = data.get('title')
+    category = data.get('category', '')
+    description = data.get('description', '')
+    milestone_date = data.get('milestone_date')
+    age_months = data.get('age_months')
+    photo_filename = data.get('photo_filename', '')
+    if not title or not milestone_date:
+        return jsonify({"error": "title and milestone_date are required"}), 400
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute(
+        "INSERT INTO milestones (title, category, description, milestone_date, age_months, photo_filename) VALUES (?, ?, ?, ?, ?, ?)",
+        (title, category, description, milestone_date, age_months, photo_filename)
+    )
+    conn.commit()
+    new_id = cursor.lastrowid
+    conn.close()
+    return jsonify({"message": "Milestone added", "id": new_id}), 201
+
+@app.route('/api/milestones/<int:milestone_id>', methods=['PUT'])
+def update_milestone(milestone_id):
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": "No data provided"}), 400
+    conn = get_db()
+    cursor = conn.cursor()
+    fields = []
+    params = []
+    for key in ('title', 'category', 'description', 'milestone_date', 'age_months', 'photo_filename'):
+        if key in data:
+            fields.append(f"{key} = ?")
+            params.append(data[key])
+    if not fields:
+        conn.close()
+        return jsonify({"error": "No fields to update"}), 400
+    params.append(milestone_id)
+    cursor.execute(f"UPDATE milestones SET {', '.join(fields)} WHERE id = ?", params)
+    conn.commit()
+    conn.close()
+    return jsonify({"message": "Milestone updated"})
+
+@app.route('/api/milestones/<int:milestone_id>', methods=['DELETE'])
+def delete_milestone(milestone_id):
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM milestones WHERE id = ?", (milestone_id,))
+    conn.commit()
+    conn.close()
+    return jsonify({"message": "Deleted successfully"})
+
+@app.route('/api/photos/map', methods=['GET'])
+def list_map_photos():
+    year = request.args.get('year')
+    conn = get_db()
+    cursor = conn.cursor()
+    query = "SELECT id, filename, original_name, taken_at, description, file_type, latitude, longitude FROM photos WHERE latitude IS NOT NULL AND longitude IS NOT NULL"
+    params = []
+    if year:
+        query += " AND strftime('%Y', taken_at) = ?"
+        params.append(year)
+    query += " ORDER BY taken_at DESC"
+    cursor.execute(query, params)
+    photos = []
+    for row in cursor.fetchall():
+        photos.append({
+            "id": row[0],
+            "filename": row[1],
+            "original_name": row[2],
+            "taken_at": row[3],
+            "description": row[4],
+            "file_type": row[5],
+            "latitude": row[6],
+            "longitude": row[7]
+        })
+    conn.close()
+    return jsonify({"photos": photos})
+
 @app.route('/photos/<path:filename>')
 def serve_photo(filename):
     return send_from_directory(PHOTOS_DIR, filename)
@@ -575,20 +749,6 @@ def serve_photo(filename):
 @app.route('/videos/<path:filename>')
 def serve_video(filename):
     video_path = VIDEOS_DIR / filename
-    # 根据设备选择版本：手机播放原文件（H.265 原画），电脑用 H.264
-    if video_path.suffix.lower() == '.mp4':
-        h264_path = VIDEOS_DIR / (video_path.stem + '_h264.mp4')
-        if h264_path.exists():
-            user_agent = request.headers.get('User-Agent', '')
-            # 检测是否为手机设备
-            is_mobile = 'Mobile' in user_agent or 'Android' in user_agent or 'iPhone' in user_agent or 'iPad' in user_agent
-            if is_mobile:
-                # 手机用原文件（H.265 原画，更清晰）
-                pass
-            else:
-                # 电脑用 H.264（Chrome/Edge/Firefox 不支持 H.265）
-                video_path = h264_path
-                filename = h264_path.name
     if not video_path.exists():
         return "File not found", 404
 
@@ -636,51 +796,6 @@ UPLOAD_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.gif', '.webp', '.mp4', '.mov', '
 PHOTO_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.gif', '.webp'}
 VIDEO_EXTENSIONS = {'.mp4', '.mov', '.avi', '.mkv'}
 
-def is_hevc_video(video_path):
-    """检测视频是否为 H.265/HEVC 编码，使用 ffprobe 精确判断"""
-    try:
-        cmd = [
-            'ffprobe', '-v', 'quiet',
-            '-select_streams', 'v:0',
-            '-show_entries', 'stream=codec_name',
-            '-of', 'csv=p=0',
-            str(video_path)
-        ]
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
-        codec = result.stdout.strip().rstrip(',').lower()
-        return codec in ('hevc', 'h265')
-    except Exception:
-        return False
-
-def convert_to_h264(video_path):
-    """将 H.265 视频转码为 H.264，返回 H.264 文件路径"""
-    h264_path = video_path.parent / (video_path.stem + '_h264.mp4')
-    try:
-        cmd = [
-            'ffmpeg', '-y', '-loglevel', 'warning',
-            '-i', str(video_path),
-            '-c:v', 'libx264', '-crf', '28', '-preset', 'fast',
-            '-threads', '1', '-vf', 'scale=1280:720',
-            '-c:a', 'aac', '-b:a', '128k',
-            str(h264_path)
-        ]
-        result = subprocess.run(cmd, capture_output=True, timeout=600)
-        if result.returncode == 0 and h264_path.exists():
-            print(f"[OK] Converted {video_path.name} -> {h264_path.name}")
-            return h264_path
-        else:
-            print(f"[FAIL] Conversion failed for {video_path.name}")
-    except Exception as e:
-        print(f"[ERROR] H.264 conversion failed: {e}")
-    return None
-
-def convert_to_h264_async(video_path):
-    """后台异步转码 H.265 为 H.264"""
-    def _convert():
-        convert_to_h264(video_path)
-    thread = threading.Thread(target=_convert, daemon=True)
-    thread.start()
-
 @app.route('/api/upload', methods=['POST'])
 def upload_files():
     if 'files' not in request.files:
@@ -718,12 +833,6 @@ def upload_files():
                 counter += 1
 
         f.save(save_path)
-
-        # 如果是 H.265 视频，后台转码为 H.264
-        if ext in VIDEO_EXTENSIONS and is_hevc_video(save_path):
-            print(f"[INFO] H.265 detected, starting async conversion: {dest_name}")
-            convert_to_h264_async(save_path)
-            converting_files.append(dest_name)
 
         # 确定拍摄日期：优先用用户指定的，否则从文件元数据提取
         if taken_at_override:
@@ -766,9 +875,17 @@ def upload_files():
 def index():
     return send_file(BASE_DIR / "public" / "index.html")
 
-@app.route('/joke')
-def joke():
-    return send_file(BASE_DIR / "public" / "joke.html")
+@app.route('/growth')
+def growth():
+    return send_file(BASE_DIR / "public" / "growth.html")
+
+@app.route('/map')
+def map_view():
+    return send_file(BASE_DIR / "public" / "map.html")
+
+@app.route('/milestones')
+def milestones():
+    return send_file(BASE_DIR / "public" / "milestones.html")
 
 @app.route('/test')
 def test():

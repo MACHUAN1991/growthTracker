@@ -21,7 +21,9 @@ SYNC_FILES = [
     'server.py',
     'requirements.txt',
     'public/index.html',
-    'public/joke.html',
+    'public/milestones.html',
+    'public/growth.html',
+    'public/map.html',
 ]
 
 IGNORE = {'__pycache__', '.pyc', '.DS_Store', 'Thumbs.db'}
