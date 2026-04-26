@@ -310,16 +310,17 @@ def generate_video_thumbnail(source_path, filename):
 
         # 将播放图标放在中央，带半透明黑色圆形背景
         cx, cy = W // 2, H // 2
-        bg = Image.new("RGBA", (icon_size + 20, icon_size + 20), (0, 0, 0, 150))
-        bg_circle = Image.new("RGBA", (icon_size + 20, icon_size + 20), (0, 0, 0, 0))
-        circle_r = (icon_size + 20) // 2
+        bg_size = icon_size + 20
+        bg = Image.new("RGBA", (bg_size, bg_size), (0, 0, 0, 0))
         from PIL.ImageDraw import ImageDraw
-        draw = ImageDraw(bg_circle)
-        draw.ellipse([0, 0, icon_size + 20, icon_size + 20], fill=(0, 0, 0, 160))
-        bg = Image.alpha_composite(bg_circle, icon.resize((icon_size, icon_size), Image.LANCZOS))
+        draw = ImageDraw(bg)
+        draw.ellipse([0, 0, bg_size, bg_size], fill=(0, 0, 0, 160))
+        icon_paste_x = (bg_size - icon_size) // 2
+        icon_paste_y = (bg_size - icon_size) // 2
+        bg.paste(icon, (icon_paste_x, icon_paste_y), icon)
 
-        paste_x = cx - (icon_size + 20) // 2
-        paste_y = cy - (icon_size + 20) // 2
+        paste_x = cx - bg_size // 2
+        paste_y = cy - bg_size // 2
         composite.paste(bg, (paste_x, paste_y), bg)
 
         # 转为 JPEG 保存
