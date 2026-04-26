@@ -278,10 +278,10 @@ def generate_video_thumbnail(source_path, filename):
         return False
 
     try:
-        # 用 ffmpeg 提取第1秒的画面
+        # 用 ffmpeg 提取第一帧画面
         cmd = [
             'ffmpeg', '-y', '-i', str(source_path),
-            '-ss', '00:00:01',          # 第1秒
+            '-ss', '00:00:00',          # 第一帧
             '-vframes', '1',
             '-q:v', '2',
             '-vf', 'scale=300:-1',
