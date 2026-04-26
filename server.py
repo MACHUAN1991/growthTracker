@@ -281,7 +281,7 @@ def generate_video_thumbnail(source_path, filename):
             '-loglevel', 'error',
             '-vframes', '1',
             '-q:v', '2',
-            '-vf', 'scale=300:-1',
+            '-vf', 'scale=300:-2',
             '-update', '1',
             str(frame_path)
         ]
@@ -294,43 +294,11 @@ def generate_video_thumbnail(source_path, filename):
                 print(f"ffmpeg failed: {msg}")
             return False
 
-        # 添加播放图标
-        img = Image.open(frame_path).convert("RGBA")
-        W, H = img.size
-        icon_size = max(W // 3, 80)
-        icon_path = THUMBNAILS_DIR / "play_icon.png"
-
-        # 如果没有播放图标，先创建一个
-        if not icon_path.exists():
-            create_play_icon(icon_path, icon_size)
-
-        icon = Image.open(icon_path).convert("RGBA")
-        icon = icon.resize((icon_size, icon_size), Image.LANCZOS)
-
-        # 创建一个带透明层的画布
-        composite = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-        composite.paste(img, (0, 0))
-
-        # 将播放图标放在中央，带半透明黑色圆形背景
-        cx, cy = W // 2, H // 2
-        bg_size = icon_size + 20
-        bg = Image.new("RGBA", (bg_size, bg_size), (0, 0, 0, 0))
-        from PIL.ImageDraw import ImageDraw
-        draw = ImageDraw(bg)
-        draw.ellipse([0, 0, bg_size, bg_size], fill=(0, 0, 0, 160))
-        icon_paste_x = (bg_size - icon_size) // 2
-        icon_paste_y = (bg_size - icon_size) // 2
-        bg.paste(icon, (icon_paste_x, icon_paste_y), icon)
-
-        paste_x = cx - bg_size // 2
-        paste_y = cy - bg_size // 2
-        composite.paste(bg, (paste_x, paste_y), bg)
-
-        # 转为 JPEG 保存
-        composite_rgb = composite.convert("RGB")
-        composite_rgb.save(thumbnail_path, "JPEG", quality=85)
-
-        # 清理临时帧文件
+        # 直接保存帧作为缩略图（CSS前端已有点击播放图标）
+        # 先保存到临时jpg，再复制到最终路径（因ffmpeg输出jpg用mjpeg编码器，无需偶数限制）
+        from PIL import Image
+        frame_img = Image.open(frame_path)
+        frame_img.save(thumbnail_path, "JPEG", quality=85)
         frame_path.unlink(missing_ok=True)
         return True
 

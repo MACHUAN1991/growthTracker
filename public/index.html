@@ -549,7 +549,9 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            background: linear-gradient(135deg, #4da682 0%, #2d7a5a 100%);
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
         }
         .play-icon {
             width: 48px; height: 48px;
@@ -1276,7 +1278,7 @@
                     <div class="media-grid${selectMode ? ' select-mode' : ''}">${list.map((media, i) => {
                         const gIdx = displayedMedia.indexOf(media);
                         const isVid = media.file_type === 'video';
-                        const src = `/thumbnails/${media.filename}?v=2`;
+                        const src = `/thumbnails/${media.filename}?v=3`;
                         const isSelected = selectedIds.has(media.id);
                         const cardClass = `media-card${isSelected ? ' selected' : ''}${isVid ? ' video-card' : ''}`;
                         const dateStr = fmtDate(media.taken_at);
@@ -1284,7 +1286,7 @@
                         if (isVid) {
                             return `<div class="${cardClass}" onclick="toggleSelect(${media.id}, ${gIdx})">
                                 <div class="check-overlay"></div>
-                                <div class="video-thumb"><div class="play-icon"></div></div>
+                                <div class="video-thumb" style="background-image:url(${src})"><div class="play-icon"></div></div>
                                 <div class="card-overlay">
                                     <div class="card-date">${dateStr}</div>
                                     ${desc ? `<div class="card-desc">${desc}</div>` : ''}
