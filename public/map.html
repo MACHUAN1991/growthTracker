@@ -4,9 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>旅行足迹 — 马莅格的成长记录</title>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
-    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+    <link rel="stylesheet" href="https://cdn.bootcdn.net/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+    <link rel="stylesheet" href="https://cdn.bootcdn.net/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.min.css" />
+    <link rel="stylesheet" href="https://cdn.bootcdn.net/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.Default.min.css" />
     <style>
         :root {
             --bg: #f4f8f6;
@@ -277,8 +277,8 @@
         <p>上传带 GPS 信息的照片后，它们会出现在地图上</p>
     </div>
 
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+    <script src="https://cdn.bootcdn.net/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+    <script src="https://cdn.bootcdn.net/ajax/libs/leaflet.markercluster/1.5.3/leaflet.markercluster.min.js"></script>
 
     <script>
         const map = L.map('map', {
@@ -288,8 +288,8 @@
             attributionControl: true
         });
 
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+        L.tileLayer('https://webrd01.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&x={x}&y={y}&z={z}', {
+            attribution: '&copy; 高德地图',
             maxZoom: 18
         }).addTo(map);
 
@@ -308,6 +308,37 @@
         function formatDate(s) {
             const d = new Date(s);
             return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+        }
+
+        // ── WGS-84 → GCJ-02 坐标转换（高德使用火星坐标系） ──
+        const _pi = 3.1415926535897932384626;
+        const _a = 6378245.0;
+        const _ee = 0.00669342162296594323;
+
+        function _transformLat(x, y) {
+            let ret = -100.0 + 2.0 * x + 3.0 * y + 0.2 * y * y + 0.1 * x * y + 0.2 * Math.sqrt(Math.abs(x));
+            ret += (20.0 * Math.sin(6.0 * x * _pi) + 20.0 * Math.sin(2.0 * x * _pi)) * 2.0 / 3.0;
+            ret += (20.0 * Math.sin(y * _pi) + 40.0 * Math.sin(y / 3.0 * _pi)) * 2.0 / 3.0;
+            ret += (160.0 * Math.sin(y / 12.0 * _pi) + 320.0 * Math.sin(y * _pi / 30.0)) * 2.0 / 3.0;
+            return ret;
+        }
+        function _transformLon(x, y) {
+            let ret = 300.0 + x + 2.0 * y + 0.1 * x * x + 0.1 * x * y + 0.1 * Math.sqrt(Math.abs(x));
+            ret += (20.0 * Math.sin(6.0 * x * _pi) + 20.0 * Math.sin(2.0 * x * _pi)) * 2.0 / 3.0;
+            ret += (20.0 * Math.sin(x * _pi) + 40.0 * Math.sin(x / 3.0 * _pi)) * 2.0 / 3.0;
+            ret += (150.0 * Math.sin(x / 12.0 * _pi) + 300.0 * Math.sin(x / 30.0 * _pi)) * 2.0 / 3.0;
+            return ret;
+        }
+        function wgs84ToGcj02(wgsLat, wgsLng) {
+            let dlat = _transformLat(wgsLng - 105.0, wgsLat - 35.0);
+            let dlng = _transformLon(wgsLng - 105.0, wgsLat - 35.0);
+            let radlat = wgsLat / 180.0 * _pi;
+            let magic = Math.sin(radlat);
+            magic = 1 - _ee * magic * magic;
+            let sqrtmagic = Math.sqrt(magic);
+            dlat = (dlat * 180.0) / ((_a * (1 - _ee)) / (magic * sqrtmagic) * _pi);
+            dlng = (dlng * 180.0) / (_a / sqrtmagic * Math.cos(radlat) * _pi);
+            return { lat: wgsLat + dlat, lng: wgsLng + dlng };
         }
 
         function createIcon(isVideo) {
@@ -364,6 +395,7 @@
                 if (!p.latitude || !p.longitude) return;
                 const isVideo = p.file_type === 'video';
                 const icon = createIcon(isVideo);
+                const gcj = wgs84ToGcj02(p.latitude, p.longitude);
                 const thumbSrc = `/thumbnails/${p.filename}`;
                 const mediaSrc = isVideo ? `/videos/${p.filename}` : `/photos/${p.filename}`;
                 const dateStr = formatDate(p.taken_at);
@@ -384,11 +416,11 @@
                     </div>
                 `;
 
-                const marker = L.marker([p.latitude, p.longitude], { icon });
+                const marker = L.marker([gcj.lat, gcj.lng], { icon });
                 marker.bindPopup(popupHtml, { maxWidth: 240, className: '' });
                 markerGroup.addLayer(marker);
                 markers.push(marker);
-                bounds.push([p.latitude, p.longitude]);
+                bounds.push([gcj.lat, gcj.lng]);
             });
 
             map.addLayer(markerGroup);
