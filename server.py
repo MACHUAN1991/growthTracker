@@ -60,19 +60,6 @@ def init_db():
         )
     """)
     conn.execute("CREATE INDEX IF NOT EXISTS idx_growth_date ON growth_records(record_date)")
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS milestones (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            title TEXT NOT NULL,
-            category TEXT,
-            description TEXT,
-            milestone_date DATE NOT NULL,
-            age_months REAL,
-            photo_filename TEXT,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-        )
-    """)
-    conn.execute("CREATE INDEX IF NOT EXISTS idx_milestone_date ON milestones(milestone_date)")
     # 尝试添加坐标字段（兼容已有数据库）
     try:
         conn.execute("ALTER TABLE photos ADD COLUMN latitude REAL")
@@ -658,62 +645,6 @@ def list_milestones():
             "created_at": row[7]
         })
     conn.close()
-    return jsonify({"milestones": records})
-
-@app.route('/api/milestones', methods=['POST'])
-def add_milestone():
-    data = request.get_json()
-    if not data:
-        return jsonify({"error": "No data provided"}), 400
-    title = data.get('title')
-    category = data.get('category', '')
-    description = data.get('description', '')
-    milestone_date = data.get('milestone_date')
-    age_months = data.get('age_months')
-    photo_filename = data.get('photo_filename', '')
-    if not title or not milestone_date:
-        return jsonify({"error": "title and milestone_date are required"}), 400
-    conn = get_db()
-    cursor = conn.cursor()
-    cursor.execute(
-        "INSERT INTO milestones (title, category, description, milestone_date, age_months, photo_filename) VALUES (?, ?, ?, ?, ?, ?)",
-        (title, category, description, milestone_date, age_months, photo_filename)
-    )
-    conn.commit()
-    new_id = cursor.lastrowid
-    conn.close()
-    return jsonify({"message": "Milestone added", "id": new_id}), 201
-
-@app.route('/api/milestones/<int:milestone_id>', methods=['PUT'])
-def update_milestone(milestone_id):
-    data = request.get_json()
-    if not data:
-        return jsonify({"error": "No data provided"}), 400
-    conn = get_db()
-    cursor = conn.cursor()
-    fields = []
-    params = []
-    for key in ('title', 'category', 'description', 'milestone_date', 'age_months', 'photo_filename'):
-        if key in data:
-            fields.append(f"{key} = ?")
-            params.append(data[key])
-    if not fields:
-        conn.close()
-        return jsonify({"error": "No fields to update"}), 400
-    params.append(milestone_id)
-    cursor.execute(f"UPDATE milestones SET {', '.join(fields)} WHERE id = ?", params)
-    conn.commit()
-    conn.close()
-    return jsonify({"message": "Milestone updated"})
-
-@app.route('/api/milestones/<int:milestone_id>', methods=['DELETE'])
-def delete_milestone(milestone_id):
-    conn = get_db()
-    cursor = conn.cursor()
-    cursor.execute("DELETE FROM milestones WHERE id = ?", (milestone_id,))
-    conn.commit()
-    conn.close()
-    return jsonify({"message": "Deleted successfully"})
 
 @app.route('/api/photos/map', methods=['GET'])
 def list_map_photos():
@@ -882,10 +813,6 @@ def growth():
 @app.route('/map')
 def map_view():
     return send_file(BASE_DIR / "public" / "map.html")
-
-@app.route('/milestones')
-def milestones():
-    return send_file(BASE_DIR / "public" / "milestones.html")
 
 @app.route('/test')
 def test():

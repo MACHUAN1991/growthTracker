@@ -3,7 +3,16 @@
     "allow": [
       "Bash(python -c ':*)",
       "Bash(git pull *)",
-      "Bash(git add *)"
+      "Bash(git add *)",
+      "Bash(python server.py)",
+      "Bash(curl -s http://localhost:8000/growth)",
+      "Bash(curl:*)",
+      "Bash(python -m json.tool)",
+      "Bash(pkill -f \"python server.py\")",
+      "Bash(python -c \"import py_compile; py_compile.compile\\('server.py', doraise=True\\); print\\('OK'\\)\")",
+      "Bash(python -c \"import paramiko; print\\('paramiko OK'\\)\")",
+      "Bash(pip install:*)",
+      "Bash(python sync.py)"
     ]
   }
 }

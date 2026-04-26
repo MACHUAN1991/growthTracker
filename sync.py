@@ -21,7 +21,6 @@ SYNC_FILES = [
     'server.py',
     'requirements.txt',
     'public/index.html',
-    'public/milestones.html',
     'public/growth.html',
     'public/map.html',
 ]

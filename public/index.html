@@ -218,36 +218,6 @@
         }
         .db-card .db-link:hover { color: var(--accent-dark); }
 
-        /* Milestone preview */
-        .db-milestones { list-style: none; }
-        .db-milestones li {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            padding: 7px 0;
-            border-bottom: 1px solid var(--border);
-            font-size: 0.82rem;
-        }
-        .db-milestones li:last-child { border-bottom: none; }
-        .db-milestones .ms-date {
-            font-size: 0.72rem;
-            color: var(--text-dim);
-            white-space: nowrap;
-            margin-left: auto;
-        }
-        .db-milestones .ms-dot {
-            width: 7px; height: 7px;
-            border-radius: 50%;
-            background: var(--accent);
-            flex-shrink: 0;
-        }
-        .db-empty {
-            font-size: 0.82rem;
-            color: var(--text-dim);
-            padding: 20px 0;
-            text-align: center;
-        }
-
         /* Growth preview */
         .db-growth-nums {
             display: flex;
@@ -1029,7 +999,6 @@
         <div class="global-nav-inner">
             <span class="nav-brand">🌱 成长记录</span>
             <a class="nav-item active" href="/">🏠 首页</a>
-            <a class="nav-item" href="/milestones">🏆 里程碑</a>
             <a class="nav-item" href="/growth">📈 成长曲线</a>
             <a class="nav-item" href="/map">🌍 旅行足迹</a>
             <span class="nav-spacer"></span>
@@ -1050,22 +1019,11 @@
         <div class="stat-card"><div class="stat-num" id="statTotal">—</div><div class="stat-label">全部记录</div></div>
         <div class="stat-card"><div class="stat-num" id="statYears">—</div><div class="stat-label">成长年份</div></div>
         <div class="stat-card"><div class="stat-num" id="statMonths">—</div><div class="stat-label">跨越月份</div></div>
-        <div class="stat-card"><div class="stat-num" id="statMilestones">—</div><div class="stat-label">里程碑</div></div>
         <div class="stat-card"><div class="stat-num" id="statPlaces">—</div><div class="stat-label">到过的地方</div></div>
     </div>
 
     <!-- Dashboard -->
     <div class="dashboard">
-        <!-- Milestone card -->
-        <div class="db-card" id="dbMilestones">
-            <div class="db-header">
-                <span class="db-title">🏆 最近里程碑</span>
-                <a class="db-link" href="/milestones">查看全部 →</a>
-            </div>
-            <div class="db-loading" id="msLoading"><span class="spinner"></span>加载中...</div>
-            <ul class="db-milestones" id="msList" style="display:none;"></ul>
-            <div class="db-empty" id="msEmpty" style="display:none;">还没有里程碑记录<br><a href="/milestones" style="color:var(--accent);font-size:0.78rem;">去记录第一个 →</a></div>
-        </div>
 
         <!-- Growth card -->
         <div class="db-card" id="dbGrowth">
@@ -1191,31 +1149,8 @@
 
         // ── Dashboard Data Loading ──
         async function loadDashboard() {
-            loadMilestonesPreview();
             loadGrowthPreview();
             loadMapPreview();
-        }
-
-        async function loadMilestonesPreview() {
-            try {
-                const r = await fetch('/api/milestones');
-                const d = await r.json();
-                const ms = d.milestones || [];
-                document.getElementById('msLoading').style.display = 'none';
-                if (ms.length === 0) {
-                    document.getElementById('msEmpty').style.display = 'block';
-                    return;
-                }
-                const list = document.getElementById('msList');
-                list.style.display = 'block';
-                const recent = ms.sort((a,b) => new Date(b.milestone_date) - new Date(a.milestone_date)).slice(0, 5);
-                list.innerHTML = recent.map(m => {
-                    const d = m.milestone_date ? formatDate(m.milestone_date) : '';
-                    return `<li><span class="ms-dot"></span>${m.title}<span class="ms-date">${d}</span></li>`;
-                }).join('');
-            } catch(e) {
-                document.getElementById('msLoading').innerHTML = '加载失败';
-            }
         }
 
         async function loadGrowthPreview() {
@@ -1277,12 +1212,6 @@
                 const d = await r.json();
                 renderStats(d.timeline);
                 renderYears(d.timeline);
-                // Update milestone stat
-                try {
-                    const mr = await fetch('/api/milestones');
-                    const md = await mr.json();
-                    document.getElementById('statMilestones').textContent = (md.milestones || []).length;
-                } catch(e) {}
                 // Update map stat
                 try {
                     const mpr = await fetch('/api/photos/map');
