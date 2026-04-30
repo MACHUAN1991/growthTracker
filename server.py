@@ -61,6 +61,33 @@ def init_db():
         )
     """)
     conn.execute("CREATE INDEX IF NOT EXISTS idx_growth_date ON growth_records(record_date)")
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS poems (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            record_date DATE NOT NULL,
+            title TEXT NOT NULL DEFAULT '',
+            author TEXT NOT NULL DEFAULT '',
+            content TEXT NOT NULL,
+            mastery TEXT NOT NULL DEFAULT '学习中',
+            image_filename TEXT,
+            notes TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_poems_date ON poems(record_date)")
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS vocabulary (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            record_date DATE NOT NULL,
+            content TEXT NOT NULL,
+            translation TEXT NOT NULL DEFAULT '',
+            mastery TEXT NOT NULL DEFAULT '学习中',
+            image_filename TEXT,
+            notes TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_vocab_date ON vocabulary(record_date)")
     # 尝试添加坐标字段（兼容已有数据库）
     try:
         conn.execute("ALTER TABLE photos ADD COLUMN latitude REAL")
@@ -68,6 +95,20 @@ def init_db():
         pass
     try:
         conn.execute("ALTER TABLE photos ADD COLUMN longitude REAL")
+    except:
+        pass
+    # 尝试添加古诗题目和作者字段（兼容已有数据库）
+    try:
+        conn.execute("ALTER TABLE poems ADD COLUMN title TEXT NOT NULL DEFAULT ''")
+    except:
+        pass
+    try:
+        conn.execute("ALTER TABLE poems ADD COLUMN author TEXT NOT NULL DEFAULT ''")
+    except:
+        pass
+    # 尝试添加单词翻译字段（兼容已有数据库）
+    try:
+        conn.execute("ALTER TABLE vocabulary ADD COLUMN translation TEXT NOT NULL DEFAULT ''")
     except:
         pass
     conn.commit()
@@ -612,6 +653,163 @@ def delete_growth(record_id):
     conn.close()
     return jsonify({"message": "Deleted successfully"})
 
+# ── Learning: Image Upload ──
+
+@app.route('/api/upload-image', methods=['POST'])
+def upload_learning_image():
+    if 'file' not in request.files:
+        return jsonify({"error": "No file provided"}), 400
+    f = request.files['file']
+    if not f.filename:
+        return jsonify({"error": "No file selected"}), 400
+    ext = Path(f.filename).suffix.lower()
+    if ext not in PHOTO_EXTENSIONS:
+        return jsonify({"error": "Unsupported file format"}), 400
+    dest_name = secure_filename(f.filename)
+    save_path = PHOTOS_DIR / dest_name
+    if save_path.exists():
+        stem = Path(dest_name).stem
+        counter = 1
+        while save_path.exists():
+            dest_name = f"{stem}_{counter}{ext}"
+            save_path = PHOTOS_DIR / dest_name
+            counter += 1
+    f.save(save_path)
+    generate_thumbnail(save_path, dest_name)
+    return jsonify({"filename": dest_name}), 201
+
+# ── Learning: Poems CRUD ──
+
+@app.route('/api/poems', methods=['GET'])
+def list_poems():
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT id, record_date, title, author, content, mastery, created_at FROM poems ORDER BY record_date DESC")
+    rows = cursor.fetchall()
+    conn.close()
+    records = [{"id": r[0], "record_date": r[1], "title": r[2], "author": r[3], "content": r[4], "mastery": r[5], "created_at": r[6]} for r in rows]
+    return jsonify({"records": records})
+
+@app.route('/api/poems', methods=['POST'])
+def add_poem():
+    data = request.get_json()
+    if not data or not data.get('record_date') or not data.get('content'):
+        return jsonify({"error": "日期和内容不能为空"}), 400
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("INSERT INTO poems (record_date, title, author, content, mastery) VALUES (?, ?, ?, ?, ?)",
+                   (data['record_date'], data.get('title', ''), data.get('author', ''), data['content'], data.get('mastery', '学习中')))
+    new_id = cursor.lastrowid
+    conn.commit()
+    conn.close()
+    return jsonify({"message": "Record added", "id": new_id}), 201
+
+@app.route('/api/poems/<int:record_id>', methods=['PUT'])
+def update_poem(record_id):
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": "No data provided"}), 400
+    conn = get_db()
+    cursor = conn.cursor()
+    fields = []
+    values = []
+    for key in ('title', 'author', 'content', 'mastery'):
+        if key in data:
+            fields.append(f"{key} = ?")
+            values.append(data[key])
+    if not fields:
+        conn.close()
+        return jsonify({"error": "No fields to update"}), 400
+    values.append(record_id)
+    cursor.execute(f"UPDATE poems SET {', '.join(fields)} WHERE id = ?", values)
+    conn.commit()
+    conn.close()
+    return jsonify({"message": "Updated successfully"})
+
+@app.route('/api/poems/<int:record_id>', methods=['DELETE'])
+def delete_poem(record_id):
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT image_filename FROM poems WHERE id = ?", (record_id,))
+    row = cursor.fetchone()
+    if row and row[0]:
+        img_path = PHOTOS_DIR / row[0]
+        if img_path.exists():
+            img_path.unlink()
+        thumb_path = THUMBNAILS_DIR / row[0]
+        if thumb_path.exists():
+            thumb_path.unlink()
+    cursor.execute("DELETE FROM poems WHERE id = ?", (record_id,))
+    conn.commit()
+    conn.close()
+    return jsonify({"message": "Deleted successfully"})
+
+# ── Learning: Vocabulary CRUD ──
+
+@app.route('/api/vocabulary', methods=['GET'])
+def list_vocabulary():
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT id, record_date, content, translation, mastery, created_at FROM vocabulary ORDER BY record_date DESC")
+    rows = cursor.fetchall()
+    conn.close()
+    records = [{"id": r[0], "record_date": r[1], "content": r[2], "translation": r[3], "mastery": r[4], "created_at": r[5]} for r in rows]
+    return jsonify({"records": records})
+
+@app.route('/api/vocabulary', methods=['POST'])
+def add_vocabulary():
+    data = request.get_json()
+    if not data or not data.get('record_date') or not data.get('content'):
+        return jsonify({"error": "日期和内容不能为空"}), 400
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("INSERT INTO vocabulary (record_date, content, translation, mastery) VALUES (?, ?, ?, ?)",
+                   (data['record_date'], data['content'], data.get('translation', ''), data.get('mastery', '学习中')))
+    new_id = cursor.lastrowid
+    conn.commit()
+    conn.close()
+    return jsonify({"message": "Record added", "id": new_id}), 201
+
+@app.route('/api/vocabulary/<int:record_id>', methods=['PUT'])
+def update_vocabulary(record_id):
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": "No data provided"}), 400
+    conn = get_db()
+    cursor = conn.cursor()
+    fields = []
+    values = []
+    for key in ('content', 'translation', 'mastery'):
+        if key in data:
+            fields.append(f"{key} = ?")
+            values.append(data[key])
+    if not fields:
+        conn.close()
+        return jsonify({"error": "No fields to update"}), 400
+    values.append(record_id)
+    cursor.execute(f"UPDATE vocabulary SET {', '.join(fields)} WHERE id = ?", values)
+    conn.commit()
+    conn.close()
+    return jsonify({"message": "Updated successfully"})
+
+@app.route('/api/vocabulary/<int:record_id>', methods=['DELETE'])
+def delete_vocabulary(record_id):
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT image_filename FROM vocabulary WHERE id = ?", (record_id,))
+    row = cursor.fetchone()
+    if row and row[0]:
+        img_path = PHOTOS_DIR / row[0]
+        if img_path.exists():
+            img_path.unlink()
+        thumb_path = THUMBNAILS_DIR / row[0]
+        if thumb_path.exists():
+            thumb_path.unlink()
+    cursor.execute("DELETE FROM vocabulary WHERE id = ?", (record_id,))
+    conn.commit()
+    conn.close()
+    return jsonify({"message": "Deleted successfully"})
+
 @app.route('/api/photos/map', methods=['GET'])
 def list_map_photos():
     year = request.args.get('year')
@@ -783,6 +981,14 @@ def growth():
 @app.route('/map')
 def map_view():
     return send_file(BASE_DIR / "public" / "map.html")
+
+@app.route('/poems')
+def poems_page():
+    return send_file(BASE_DIR / "public" / "poems.html")
+
+@app.route('/vocabulary')
+def vocabulary_page():
+    return send_file(BASE_DIR / "public" / "vocabulary.html")
 
 @app.route('/test')
 def test():

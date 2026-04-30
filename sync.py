@@ -22,6 +22,8 @@ SYNC_FILES = [
     'public/index.html',
     'public/growth.html',
     'public/map.html',
+    'public/poems.html',
+    'public/vocabulary.html',
 ]
 
 IGNORE = {'__pycache__', '.pyc', '.DS_Store', 'Thumbs.db'}

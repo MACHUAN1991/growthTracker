@@ -1003,6 +1003,8 @@
             <a class="nav-item active" href="/">🏠 首页</a>
             <a class="nav-item" href="/growth">📈 成长曲线</a>
             <a class="nav-item" href="/map">🌍 旅行足迹</a>
+            <a class="nav-item" href="/poems">📖 古诗</a>
+            <a class="nav-item" href="/vocabulary">🔤 单词</a>
             <span class="nav-spacer"></span>
             <button class="nav-upload-btn" onclick="openUpload()">+ 上传</button>
         </div>
@@ -1061,6 +1063,40 @@
                 </div>
             </div>
             <div class="db-empty" id="mpEmpty" style="display:none;">还没有带 GPS 的照片<br><span style="font-size:0.78rem;color:var(--text-dim);">手机拍照时开启位置即可</span></div>
+        </div>
+
+        <!-- Poems card -->
+        <div class="db-card" id="dbPoems">
+            <div class="db-header">
+                <span class="db-title">📖 古诗学习</span>
+                <a class="db-link" href="/poems">查看全部 →</a>
+            </div>
+            <div class="db-loading" id="poLoading"><span class="spinner"></span>加载中...</div>
+            <div class="db-growth" id="poContent" style="display:none;">
+                <div class="db-growth-nums">
+                    <div class="gn-item"><div class="gn-val" id="poTotal">0</div><div class="gn-label">总学习</div></div>
+                    <div class="gn-item"><div class="gn-val" id="poMastered">0</div><div class="gn-label">已掌握</div></div>
+                    <div class="gn-item"><div class="gn-val" id="poReview">0</div><div class="gn-label">需复习</div></div>
+                </div>
+            </div>
+            <div class="db-empty" id="poEmpty" style="display:none;">还没有学习古诗<br><a href="/poems" style="color:var(--accent);font-size:0.78rem;">去记录 →</a></div>
+        </div>
+
+        <!-- Vocabulary card -->
+        <div class="db-card" id="dbVocab">
+            <div class="db-header">
+                <span class="db-title">🔤 英文单词</span>
+                <a class="db-link" href="/vocabulary">查看全部 →</a>
+            </div>
+            <div class="db-loading" id="vcLoading"><span class="spinner"></span>加载中...</div>
+            <div class="db-growth" id="vcContent" style="display:none;">
+                <div class="db-growth-nums">
+                    <div class="gn-item"><div class="gn-val" id="vcTotal">0</div><div class="gn-label">总学习</div></div>
+                    <div class="gn-item"><div class="gn-val" id="vcMastered">0</div><div class="gn-label">已掌握</div></div>
+                    <div class="gn-item"><div class="gn-val" id="vcReview">0</div><div class="gn-label">需复习</div></div>
+                </div>
+            </div>
+            <div class="db-empty" id="vcEmpty" style="display:none;">还没有学习单词<br><a href="/vocabulary" style="color:var(--accent);font-size:0.78rem;">去记录 →</a></div>
         </div>
     </div>
 
@@ -1153,6 +1189,8 @@
         async function loadDashboard() {
             loadGrowthPreview();
             loadMapPreview();
+            loadPoemsPreview();
+            loadVocabPreview();
         }
 
         async function loadGrowthPreview() {
@@ -1204,6 +1242,44 @@
                 document.getElementById('mpYears').textContent = years.join('、');
             } catch(e) {
                 document.getElementById('mpLoading').innerHTML = '加载失败';
+            }
+        }
+
+        async function loadPoemsPreview() {
+            try {
+                const r = await fetch('/api/poems');
+                const d = await r.json();
+                const recs = d.records || [];
+                document.getElementById('poLoading').style.display = 'none';
+                if (recs.length === 0) {
+                    document.getElementById('poEmpty').style.display = 'block';
+                    return;
+                }
+                document.getElementById('poContent').style.display = 'block';
+                document.getElementById('poTotal').textContent = recs.length;
+                document.getElementById('poMastered').textContent = recs.filter(r => r.mastery === '已掌握').length;
+                document.getElementById('poReview').textContent = recs.filter(r => r.mastery === '需复习').length;
+            } catch(e) {
+                document.getElementById('poLoading').innerHTML = '加载失败';
+            }
+        }
+
+        async function loadVocabPreview() {
+            try {
+                const r = await fetch('/api/vocabulary');
+                const d = await r.json();
+                const recs = d.records || [];
+                document.getElementById('vcLoading').style.display = 'none';
+                if (recs.length === 0) {
+                    document.getElementById('vcEmpty').style.display = 'block';
+                    return;
+                }
+                document.getElementById('vcContent').style.display = 'block';
+                document.getElementById('vcTotal').textContent = recs.length;
+                document.getElementById('vcMastered').textContent = recs.filter(r => r.mastery === '已掌握').length;
+                document.getElementById('vcReview').textContent = recs.filter(r => r.mastery === '需复习').length;
+            } catch(e) {
+                document.getElementById('vcLoading').innerHTML = '加载失败';
             }
         }
 

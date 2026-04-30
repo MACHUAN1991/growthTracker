@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>古诗学习 — 成长记录</title>
+    <style>
+        :root {
+            --bg: #f4f8f6;
+            --bg-card: #ffffff;
+            --bg-elevated: #eaf2ee;
+            --accent: #4da682;
+            --accent-dark: #3a8a6a;
+            --accent-light: #a3d9c0;
+            --accent-dim: rgba(77, 166, 130, 0.08);
+            --text: #1e2e28;
+            --text-secondary: #5a7a6e;
+            --text-dim: #8fa8a0;
+            --border: #d6e5de;
+            --radius: 16px;
+            --radius-sm: 10px;
+            --radius-xs: 6px;
+            --shadow-sm: 0 1px 3px rgba(0,0,0,0.04);
+            --shadow: 0 4px 20px rgba(0,0,0,0.06);
+            --shadow-lg: 0 12px 40px rgba(0,0,0,0.1);
+            --shadow-accent: 0 4px 20px rgba(77, 166, 130, 0.25);
+            --ease: cubic-bezier(0.4, 0, 0.2, 1);
+            --transition: 0.3s var(--ease);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, 'SF Pro Display', 'Inter', 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        a { color: inherit; text-decoration: none; }
+
+        /* ======== Global Nav ======== */
+        .global-nav {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: rgba(255,255,255,0.85);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border-bottom: 1px solid var(--border);
+            padding: 0 24px;
+        }
+        .global-nav-inner {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            height: 52px;
+            gap: 2px;
+        }
+        .global-nav .nav-brand {
+            font-weight: 700;
+            font-size: 0.92rem;
+            color: var(--accent-dark);
+            margin-right: 16px;
+            white-space: nowrap;
+        }
+        .global-nav .nav-item {
+            padding: 6px 14px;
+            border-radius: 8px;
+            font-size: 0.82rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: var(--transition);
+            border: none;
+            background: transparent;
+            font-family: inherit;
+            text-decoration: none;
+        }
+        .global-nav .nav-item:hover { background: var(--accent-dim); color: var(--accent-dark); }
+        .global-nav .nav-item.active {
+            background: var(--accent-dim);
+            color: var(--accent-dark);
+            font-weight: 600;
+        }
+        .global-nav .nav-spacer { flex: 1; }
+        @media (max-width: 768px) {
+            .global-nav-inner { height: auto; padding: 8px 0; flex-wrap: wrap; gap: 2px; }
+            .global-nav .nav-brand { width: 100%; margin-right: 0; }
+            .global-nav .nav-item { font-size: 0.78rem; padding: 5px 10px; }
+            .global-nav { padding: 0 12px; }
+        }
+
+        /* ======== Hero ======== */
+        .hero {
+            padding: 60px 32px 50px;
+            text-align: center;
+            background: linear-gradient(160deg, #e8f5ef 0%, #d4ede3 30%, #c8e6d8 60%, #e0f0e8 100%);
+        }
+        .hero h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            letter-spacing: -0.03em;
+            background: linear-gradient(135deg, #2d7a5a, #4da682, #3a8a6a);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 8px;
+        }
+        .hero .subtitle {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            letter-spacing: 0.1em;
+        }
+
+        /* ======== Stats ======== */
+        .stats-row {
+            max-width: 900px;
+            margin: -28px auto 0;
+            padding: 0 32px;
+            display: flex;
+            gap: 12px;
+            position: relative;
+            z-index: 2;
+            flex-wrap: wrap;
+        }
+        .stat-card {
+            flex: 1;
+            min-width: 100px;
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            padding: 18px 14px;
+            text-align: center;
+            box-shadow: var(--shadow);
+            border: 1px solid rgba(214, 229, 222, 0.5);
+        }
+        .stat-card .stat-num {
+            font-size: 1.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #3a8a6a, #4da682);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            line-height: 1.2;
+        }
+        .stat-card .stat-label {
+            font-size: 0.72rem;
+            color: var(--text-dim);
+            margin-top: 4px;
+            letter-spacing: 0.05em;
+        }
+
+        /* ======== Main ======== */
+        .main {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 32px 80px;
+        }
+
+        .section-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .section-title::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: linear-gradient(90deg, var(--border), transparent);
+        }
+
+        /* ======== Form ======== */
+        .form-card {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            padding: 28px 32px;
+            box-shadow: var(--shadow-sm);
+            border: 1px solid rgba(214, 229, 222, 0.4);
+            margin-bottom: 32px;
+        }
+        .form-row {
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+            align-items: flex-end;
+        }
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        .form-group label {
+            font-size: 0.78rem;
+            color: var(--text-dim);
+            font-weight: 500;
+        }
+        .form-group input, .form-group textarea, .form-group select {
+            padding: 10px 14px;
+            border: 1.5px solid var(--border);
+            border-radius: var(--radius-sm);
+            font-size: 0.88rem;
+            font-family: inherit;
+            background: var(--bg-elevated);
+            color: var(--text);
+            transition: var(--transition);
+            min-width: 140px;
+        }
+        .form-group input:focus, .form-group textarea:focus, .form-group select:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(77,166,130,0.1);
+        }
+        .form-group input::placeholder, .form-group textarea::placeholder { color: var(--text-dim); }
+        .form-group textarea {
+            resize: vertical;
+            min-height: 80px;
+            line-height: 1.5;
+        }
+        .form-group select {
+            cursor: pointer;
+            appearance: auto;
+        }
+        .form-group input[type="file"] {
+            padding: 8px 14px;
+            cursor: pointer;
+        }
+        .form-btn {
+            padding: 10px 28px;
+            background: linear-gradient(135deg, #4da682, #3a8a6a);
+            color: #fff;
+            border: none;
+            border-radius: var(--radius-sm);
+            font-size: 0.88rem;
+            font-weight: 500;
+            font-family: inherit;
+            cursor: pointer;
+            transition: var(--transition);
+            box-shadow: var(--shadow-accent);
+            white-space: nowrap;
+        }
+        .form-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 16px rgba(77,166,130,0.3);
+        }
+        .form-error {
+            color: #e87c7c;
+            font-size: 0.82rem;
+            margin-top: 10px;
+            min-height: 1.2em;
+        }
+
+        /* ======== Table ======== */
+        .table-wrap {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            overflow: hidden;
+            box-shadow: var(--shadow-sm);
+            border: 1px solid rgba(214, 229, 222, 0.4);
+        }
+        .table-wrap table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+        }
+        .table-wrap th {
+            background: var(--bg-elevated);
+            padding: 12px 16px;
+            text-align: left;
+            font-weight: 600;
+            color: var(--text-secondary);
+            font-size: 0.78rem;
+            letter-spacing: 0.04em;
+        }
+        .table-wrap td {
+            padding: 11px 16px;
+            border-top: 1px solid var(--border);
+            color: var(--text);
+        }
+        .table-wrap tr:hover td { background: var(--accent-dim); }
+        .table-wrap .del-btn {
+            padding: 5px 12px;
+            border: 1px solid rgba(232,124,124,0.3);
+            background: transparent;
+            color: #e88;
+            border-radius: var(--radius-xs);
+            cursor: pointer;
+            font-size: 0.78rem;
+            font-family: inherit;
+            transition: var(--transition);
+        }
+        .table-wrap .del-btn:hover {
+            background: #e87c7c;
+            border-color: #e87c7c;
+            color: #fff;
+        }
+        .table-empty {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-dim);
+            font-size: 0.9rem;
+        }
+
+        /* ======== Mastery Badge ======== */
+        .mastery-badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            white-space: nowrap;
+        }
+        .mastery-badge.mastered {
+            background: rgba(77,166,130,0.12);
+            color: #2d7a5a;
+        }
+        .mastery-badge.learning {
+            background: rgba(77,166,130,0.06);
+            color: var(--text-secondary);
+        }
+        .mastery-badge.review {
+            background: rgba(232,124,124,0.1);
+            color: #d96b6b;
+        }
+
+        /* ======== Image Thumbnail ======== */
+        .thumb-img {
+            width: 40px;
+            height: 40px;
+            border-radius: 6px;
+            object-fit: cover;
+        }
+
+        /* ======== Delete Modal ======== */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(14, 22, 18, 0.7);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            z-index: 3000;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-overlay.active { display: flex; }
+        .modal-box {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 32px;
+            width: 320px;
+            text-align: center;
+            box-shadow: 0 32px 80px rgba(0,0,0,0.3);
+        }
+        .modal-box h3 { font-size: 1rem; font-weight: 600; margin-bottom: 18px; color: var(--text); }
+        .modal-input {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1.5px solid var(--border);
+            border-radius: var(--radius-sm);
+            font-size: 0.88rem;
+            font-family: inherit;
+            background: var(--bg-elevated);
+            color: var(--text);
+            text-align: center;
+            transition: var(--transition);
+        }
+        .modal-input:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(77,166,130,0.1);
+        }
+        .modal-error {
+            color: #e87c7c;
+            font-size: 0.78rem;
+            margin-top: 8px;
+            min-height: 1.2em;
+        }
+        .modal-btns { display: flex; gap: 10px; margin-top: 20px; }
+        .modal-btn {
+            flex: 1; padding: 10px;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 500;
+            font-family: inherit;
+            transition: var(--transition);
+            border: none;
+        }
+        .modal-btn.cancel {
+            background: var(--bg-elevated);
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+        }
+        .modal-btn.cancel:hover { border-color: var(--text-dim); }
+        .modal-btn.confirm {
+            background: linear-gradient(135deg, #e87c7c, #d96b6b);
+            color: #fff;
+        }
+        .modal-btn.confirm:hover { box-shadow: 0 4px 16px rgba(232,124,124,0.3); }
+
+        /* ======== Toast ======== */
+        .toast {
+            position: fixed;
+            bottom: 40px;
+            left: 50%;
+            transform: translateX(-50%) translateY(20px);
+            background: rgba(255,255,255,0.95);
+            border: 1px solid var(--accent-light);
+            border-radius: 14px;
+            padding: 14px 28px;
+            font-size: 0.88rem;
+            color: var(--text);
+            box-shadow: var(--shadow-lg);
+            z-index: 5000;
+            opacity: 0;
+            transition: opacity 0.3s, transform 0.3s;
+            pointer-events: none;
+            backdrop-filter: blur(12px);
+        }
+        .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+        /* ======== Responsive ======== */
+        @media (max-width: 768px) {
+            .hero { padding: 48px 20px 40px; }
+            .hero h1 { font-size: 1.5rem; }
+            .stats-row { padding: 0 16px; gap: 8px; }
+            .stat-card { padding: 14px 10px; min-width: 80px; }
+            .stat-card .stat-num { font-size: 1.2rem; }
+            .main { padding: 24px 16px 60px; }
+            .form-card { padding: 20px; }
+            .form-row { flex-direction: column; }
+            .form-group input, .form-group textarea, .form-group select { min-width: 100%; }
+            .table-wrap { overflow-x: auto; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Global Nav -->
+    <nav class="global-nav">
+        <div class="global-nav-inner">
+            <span class="nav-brand">🌱 成长记录</span>
+            <a class="nav-item" href="/">🏠 首页</a>
+            <a class="nav-item" href="/growth">📈 成长曲线</a>
+            <a class="nav-item" href="/map">🌍 旅行足迹</a>
+            <a class="nav-item active" href="/poems">📖 古诗</a>
+            <a class="nav-item" href="/vocabulary">🔤 单词</a>
+            <span class="nav-spacer"></span>
+        </div>
+    </nav>
+
+    <section class="hero">
+        <h1>古诗学习</h1>
+        <div class="subtitle">每日一首，积累经典</div>
+    </section>
+
+    <div class="stats-row">
+        <div class="stat-card"><div class="stat-num" id="sTotal">0</div><div class="stat-label">总学习</div></div>
+        <div class="stat-card"><div class="stat-num" id="sMastered">0</div><div class="stat-label">已掌握</div></div>
+        <div class="stat-card"><div class="stat-num" id="sLearning">0</div><div class="stat-label">学习中</div></div>
+        <div class="stat-card"><div class="stat-num" id="sReview">0</div><div class="stat-label">需复习</div></div>
+    </div>
+
+    <main class="main">
+
+        <!-- Add Record -->
+        <div class="section-title">添加古诗</div>
+        <div class="form-card">
+            <div class="form-row">
+                <div class="form-group">
+                    <label>学习日期</label>
+                    <input type="date" id="fDate">
+                </div>
+                <div class="form-group">
+                    <label>题目</label>
+                    <input type="text" id="fTitle" placeholder="如: 静夜思">
+                </div>
+                <div class="form-group">
+                    <label>作者</label>
+                    <input type="text" id="fAuthor" placeholder="如: 李白">
+                </div>
+                <div class="form-group">
+                    <label>掌握程度</label>
+                    <select id="fMastery">
+                        <option value="学习中">学习中</option>
+                        <option value="已掌握">已掌握</option>
+                        <option value="需复习">需复习</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-row" style="margin-top:12px;">
+                <div class="form-group" style="flex:1;min-width:200px;">
+                    <label>古诗内容</label>
+                    <textarea id="fContent" placeholder="床前明月光，疑是地上霜。&#10;举头望明月，低头思故乡。"></textarea>
+                </div>
+                <button class="form-btn" onclick="addRecord()">保存记录</button>
+            </div>
+            <div class="form-error" id="formError"></div>
+        </div>
+
+        <div class="section-title">历史记录</div>
+
+        <!-- Records Table -->
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr><th>日期</th><th>题目</th><th>作者</th><th>古诗内容</th><th>掌握程度</th><th></th></tr>
+                </thead>
+                <tbody id="recordsBody"></tbody>
+            </table>
+            <div class="table-empty" id="tableEmpty">还没有记录，在上面添加第一条吧</div>
+        </div>
+
+    </main>
+
+    <!-- Delete Password Modal -->
+    <div class="modal-overlay" id="deleteModal">
+        <div class="modal-box">
+            <h3>请输入密码</h3>
+            <input type="password" class="modal-input" id="deletePasswordInput" placeholder="密码">
+            <div class="modal-error" id="deleteError"></div>
+            <div class="modal-btns">
+                <button class="modal-btn cancel" onclick="closeDeleteModal()">取消</button>
+                <button class="modal-btn confirm" onclick="submitDelete()">确认</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+        let records = [];
+        let deleteTargetId = null;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            loadRecords();
+        });
+
+        // ── API ──
+        async function loadRecords() {
+            try {
+                const r = await fetch('/api/poems');
+                const d = await r.json();
+                records = d.records || [];
+                render();
+            } catch (e) {
+                console.error(e);
+                showToast('加载失败');
+            }
+        }
+
+        async function addRecord() {
+            const date = document.getElementById('fDate').value;
+            const title = document.getElementById('fTitle').value.trim();
+            const author = document.getElementById('fAuthor').value.trim();
+            const content = document.getElementById('fContent').value.trim();
+            const mastery = document.getElementById('fMastery').value;
+            const errEl = document.getElementById('formError');
+
+            if (!date) { errEl.textContent = '请选择学习日期'; return; }
+            if (!content) { errEl.textContent = '请输入古诗内容'; return; }
+
+            const payload = { record_date: date, title, author, content, mastery };
+
+            try {
+                const r = await fetch('/api/poems', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                if (!r.ok) throw new Error('Save failed');
+                errEl.textContent = '';
+                document.getElementById('fTitle').value = '';
+                document.getElementById('fAuthor').value = '';
+                document.getElementById('fContent').value = '';
+                document.getElementById('fDate').value = '';
+                showToast('记录已保存');
+                await loadRecords();
+            } catch (e) {
+                errEl.textContent = '保存失败，请重试';
+                console.error(e);
+            }
+        }
+
+        function deleteRecord(id) {
+            deleteTargetId = id;
+            document.getElementById('deleteModal').classList.add('active');
+            document.getElementById('deletePasswordInput').value = '';
+            document.getElementById('deleteError').textContent = '';
+            document.getElementById('deletePasswordInput').focus();
+        }
+
+        function closeDeleteModal() {
+            document.getElementById('deleteModal').classList.remove('active');
+            deleteTargetId = null;
+        }
+
+        async function submitDelete() {
+            const password = document.getElementById('deletePasswordInput').value;
+            if (password !== '231109') {
+                document.getElementById('deleteError').textContent = '密码错误';
+                return;
+            }
+            try {
+                await fetch(`/api/poems/${deleteTargetId}`, { method: 'DELETE' });
+                closeDeleteModal();
+                showToast('记录已删除');
+                await loadRecords();
+            } catch (e) {
+                console.error(e);
+                showToast('删除失败');
+            }
+        }
+
+        // ── Render ──
+        function render() {
+            renderStats();
+            renderTable();
+        }
+
+        function renderStats() {
+            const total = records.length;
+            const mastered = records.filter(r => r.mastery === '已掌握').length;
+            const learning = records.filter(r => r.mastery === '学习中').length;
+            const review = records.filter(r => r.mastery === '需复习').length;
+            document.getElementById('sTotal').textContent = total;
+            document.getElementById('sMastered').textContent = mastered;
+            document.getElementById('sLearning').textContent = learning;
+            document.getElementById('sReview').textContent = review;
+        }
+
+        function masteryClass(m) {
+            if (m === '已掌握') return 'mastered';
+            if (m === '需复习') return 'review';
+            return 'learning';
+        }
+
+        function formatDate(s) {
+            const d = new Date(s);
+            return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+        }
+
+        function renderTable() {
+            const tbody = document.getElementById('recordsBody');
+            const empty = document.getElementById('tableEmpty');
+            if (records.length === 0) {
+                tbody.innerHTML = '';
+                empty.style.display = 'block';
+                return;
+            }
+            empty.style.display = 'none';
+            tbody.innerHTML = records.map(r => {
+                const contentPreview = r.content.length > 30 ? r.content.substring(0, 30) + '...' : r.content;
+                return `<tr>
+                    <td>${formatDate(r.record_date)}</td>
+                    <td style="font-weight:500;">${r.title || '—'}</td>
+                    <td style="color:var(--text-secondary);">${r.author || '—'}</td>
+                    <td style="max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${r.content.replace(/"/g, '&quot;')}">${contentPreview}</td>
+                    <td><span class="mastery-badge ${masteryClass(r.mastery)}">${r.mastery}</span></td>
+                    <td><button class="del-btn" onclick="deleteRecord(${r.id})">删除</button></td>
+                </tr>`;
+            }).join('');
+        }
+
+        // ── Toast ──
+        function showToast(msg) {
+            const el = document.getElementById('toast');
+            el.textContent = msg;
+            el.classList.add('show');
+            clearTimeout(el._timer);
+            el._timer = setTimeout(() => el.classList.remove('show'), 2500);
+        }
+
+        // ── Form: set today's date on focus ──
+        document.getElementById('fDate').addEventListener('focus', function() {
+            if (!this.value) this.value = new Date().toISOString().split('T')[0];
+        });
+
+        // ── Enter key submits ──
+        document.getElementById('deletePasswordInput').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') submitDelete();
+        });
+    </script>
+</body>
+</html>
