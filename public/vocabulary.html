@@ -590,6 +590,23 @@
             document.getElementById('deletePasswordInput').focus();
         }
 
+        const MASTERY_CYCLE = ['学习中', '已掌握', '需复习'];
+        async function toggleMastery(id, current) {
+            const idx = MASTERY_CYCLE.indexOf(current);
+            const next = MASTERY_CYCLE[(idx + 1) % MASTERY_CYCLE.length];
+            try {
+                await fetch(`/api/vocabulary/${id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ mastery: next })
+                });
+                showToast('已更新为「' + next + '」');
+                await loadRecords();
+            } catch (e) {
+                showToast('更新失败');
+            }
+        }
+
         function closeDeleteModal() {
             document.getElementById('deleteModal').classList.remove('active');
             deleteTargetId = null;
@@ -654,7 +671,7 @@
                     <td>${formatDate(r.record_date)}</td>
                     <td style="font-weight:500;">${r.content}</td>
                     <td style="color:var(--text-secondary);">${r.translation || '—'}</td>
-                    <td><span class="mastery-badge ${masteryClass(r.mastery)}">${r.mastery}</span></td>
+                    <td><span class="mastery-badge ${masteryClass(r.mastery)}" style="cursor:pointer;" onclick="toggleMastery(${r.id}, '${r.mastery}')" title="点击切换掌握程度">${r.mastery}</span></td>
                     <td><button class="del-btn" onclick="deleteRecord(${r.id})">删除</button></td>
                 </tr>`;
             }).join('');
