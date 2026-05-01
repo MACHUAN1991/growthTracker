@@ -36,3 +36,5 @@ minimax_page.png
 
 # Environment
 .env
+.env.*
+!.env.example
