@@ -335,6 +335,81 @@
             object-fit: cover;
         }
 
+        /* ======== Audio Recording ======== */
+        .record-btn {
+            padding: 5px 12px;
+            border-radius: var(--radius-xs);
+            border: 1.5px solid #e88;
+            background: transparent;
+            color: #e88;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            transition: var(--transition);
+            font-size: 0.78rem;
+            font-family: inherit;
+            font-weight: 500;
+            white-space: nowrap;
+        }
+        .record-btn:hover {
+            background: rgba(232,124,124,0.1);
+        }
+        .record-btn.recording {
+            border-color: #e44;
+            color: #fff;
+            background: #e44;
+            animation: pulse-rec 1s infinite;
+        }
+        .record-btn.recording .rec-icon {
+            animation: blink 0.8s infinite;
+        }
+        @keyframes pulse-rec {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(238,68,68,0.4); }
+            50% { box-shadow: 0 0 0 8px rgba(238,68,68,0); }
+        }
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+        .rec-timer {
+            font-size: 0.75rem;
+            color: #e44;
+            font-weight: 600;
+            font-variant-numeric: tabular-nums;
+            min-width: 36px;
+        }
+        .audio-cell {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+        .audio-cell audio {
+            height: 32px;
+            max-width: 160px;
+        }
+        .audio-action-btn {
+            padding: 2px 8px;
+            border: 1px solid var(--border);
+            background: transparent;
+            color: var(--text-dim);
+            border-radius: var(--radius-xs);
+            cursor: pointer;
+            font-size: 0.72rem;
+            font-family: inherit;
+            transition: var(--transition);
+            white-space: nowrap;
+        }
+        .audio-action-btn:hover {
+            border-color: var(--accent);
+            color: var(--accent-dark);
+        }
+        .audio-action-btn.del-audio:hover {
+            border-color: #e88;
+            color: #e44;
+        }
+
         /* ======== Delete Modal ======== */
         .modal-overlay {
             display: none;
@@ -510,7 +585,7 @@
         <div class="table-wrap">
             <table>
                 <thead>
-                    <tr><th>日期</th><th>题目</th><th>作者</th><th>古诗内容</th><th>掌握程度</th><th></th></tr>
+                    <tr><th>日期</th><th>题目</th><th>作者</th><th>古诗内容</th><th>掌握程度</th><th>录音</th><th></th></tr>
                 </thead>
                 <tbody id="recordsBody"></tbody>
             </table>
@@ -674,15 +749,133 @@
             empty.style.display = 'none';
             tbody.innerHTML = records.map(r => {
                 const contentPreview = r.content.length > 30 ? r.content.substring(0, 30) + '...' : r.content;
+                let audioCell;
+                if (r.audio_filename) {
+                    audioCell = `<div class="audio-cell">
+                        <audio controls src="/audio/${r.audio_filename}"></audio>
+                        <button class="audio-action-btn del-audio" onclick="deleteAudio(${r.id})" title="删除录音">删除</button>
+                    </div>`;
+                } else {
+                    audioCell = `<div class="audio-cell">
+                        <button class="record-btn" id="recBtn_${r.id}" onclick="startRecord(${r.id})" title="点击开始录制"><span class="rec-icon">●</span> 录音</button>
+                        <span class="rec-timer" id="recTimer_${r.id}"></span>
+                    </div>`;
+                }
                 return `<tr>
                     <td>${formatDate(r.record_date)}</td>
                     <td style="font-weight:500;">${r.title || '—'}</td>
                     <td style="color:var(--text-secondary);">${r.author || '—'}</td>
                     <td style="max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${r.content.replace(/"/g, '&quot;')}">${contentPreview}</td>
                     <td><span class="mastery-badge ${masteryClass(r.mastery)}" style="cursor:pointer;" onclick="toggleMastery(${r.id}, '${r.mastery}')" title="点击切换掌握程度">${r.mastery}</span></td>
+                    <td>${audioCell}</td>
                     <td><button class="del-btn" onclick="deleteRecord(${r.id})">删除</button></td>
                 </tr>`;
             }).join('');
+        }
+
+        // ── Audio Recording ──
+        let currentRecorder = null;
+        let currentStream = null;
+        let currentRecordId = null;
+        let recTimerInterval = null;
+        let recStartTime = 0;
+
+        function formatRecTime(ms) {
+            const s = Math.floor(ms / 1000);
+            const m = Math.floor(s / 60);
+            return `${m}:${String(s % 60).padStart(2, '0')}`;
+        }
+
+        async function startRecord(poemId) {
+            // If currently recording, stop it
+            if (currentRecorder) {
+                currentRecorder.stop();
+                return;
+            }
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                currentStream = stream;
+                currentRecordId = poemId;
+                const btn = document.getElementById('recBtn_' + poemId);
+                const timer = document.getElementById('recTimer_' + poemId);
+                if (btn) {
+                    btn.classList.add('recording');
+                    btn.innerHTML = '<span class="rec-icon">⏹</span> 停止';
+                    btn.title = '点击停止录制';
+                }
+                // Start timer
+                recStartTime = Date.now();
+                if (timer) timer.textContent = '0:00';
+                recTimerInterval = setInterval(() => {
+                    if (timer) timer.textContent = formatRecTime(Date.now() - recStartTime);
+                }, 200);
+
+                const recorder = new MediaRecorder(stream, { mimeType: 'audio/webm;codecs=opus' });
+                const chunks = [];
+                recorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
+                recorder.onstop = async () => {
+                    clearInterval(recTimerInterval);
+                    stream.getTracks().forEach(t => t.stop());
+                    currentStream = null;
+                    currentRecorder = null;
+                    currentRecordId = null;
+                    if (btn) {
+                        btn.classList.remove('recording');
+                        btn.innerHTML = '<span class="rec-icon">●</span> 录音';
+                        btn.title = '点击开始录制';
+                    }
+                    if (timer) timer.textContent = '';
+                    const blob = new Blob(chunks, { type: 'audio/webm' });
+                    if (blob.size < 1000) {
+                        showToast('录音太短，已取消');
+                        return;
+                    }
+                    await uploadAudio(poemId, blob);
+                };
+                recorder.start();
+                currentRecorder = recorder;
+            } catch (e) {
+                console.error(e);
+                showToast('无法访问麦克风，请检查浏览器权限');
+            }
+        }
+
+        async function deleteAudio(poemId) {
+            if (!confirm('确定删除这条录音？')) return;
+            try {
+                await fetch(`/api/poems/${poemId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ audio_filename: null })
+                });
+                showToast('录音已删除');
+                await loadRecords();
+            } catch (e) {
+                console.error(e);
+                showToast('删除失败');
+            }
+        }
+
+        async function uploadAudio(poemId, blob) {
+            const formData = new FormData();
+            const filename = `poem_${poemId}_${Date.now()}.webm`;
+            formData.append('file', blob, filename);
+            try {
+                showToast('正在上传录音...');
+                const r = await fetch('/api/upload-audio', { method: 'POST', body: formData });
+                if (!r.ok) throw new Error('Upload failed');
+                const d = await r.json();
+                await fetch(`/api/poems/${poemId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ audio_filename: d.filename })
+                });
+                showToast('录音已保存');
+                await loadRecords();
+            } catch (e) {
+                console.error(e);
+                showToast('录音上传失败');
+            }
         }
 
         // ── Toast ──

@@ -25,11 +25,13 @@ BASE_DIR = Path(__file__).parent
 PHOTOS_DIR = BASE_DIR / "photos"
 VIDEOS_DIR = BASE_DIR / "videos"
 THUMBNAILS_DIR = BASE_DIR / "thumbnails"
+AUDIO_DIR = BASE_DIR / "audio"
 DB_PATH = BASE_DIR / "photos.db"
 
 PHOTOS_DIR.mkdir(exist_ok=True)
 VIDEOS_DIR.mkdir(exist_ok=True)
 THUMBNAILS_DIR.mkdir(exist_ok=True)
+AUDIO_DIR.mkdir(exist_ok=True)
 
 def get_db():
     return sqlite3.connect(DB_PATH)
@@ -109,6 +111,11 @@ def init_db():
     # 尝试添加单词翻译字段（兼容已有数据库）
     try:
         conn.execute("ALTER TABLE vocabulary ADD COLUMN translation TEXT NOT NULL DEFAULT ''")
+    except:
+        pass
+    # 尝试添加古诗录音字段（兼容已有数据库）
+    try:
+        conn.execute("ALTER TABLE poems ADD COLUMN audio_filename TEXT")
     except:
         pass
     conn.commit()
@@ -678,16 +685,42 @@ def upload_learning_image():
     generate_thumbnail(save_path, dest_name)
     return jsonify({"filename": dest_name}), 201
 
+@app.route('/api/upload-audio', methods=['POST'])
+def upload_audio():
+    if 'file' not in request.files:
+        return jsonify({"error": "No file provided"}), 400
+    f = request.files['file']
+    if not f.filename:
+        return jsonify({"error": "No file selected"}), 400
+    ext = Path(f.filename).suffix.lower()
+    if ext not in AUDIO_EXTENSIONS:
+        return jsonify({"error": "Unsupported audio format"}), 400
+    dest_name = secure_filename(f.filename)
+    save_path = AUDIO_DIR / dest_name
+    if save_path.exists():
+        stem = Path(dest_name).stem
+        counter = 1
+        while save_path.exists():
+            dest_name = f"{stem}_{counter}{ext}"
+            save_path = AUDIO_DIR / dest_name
+            counter += 1
+    f.save(save_path)
+    return jsonify({"filename": dest_name}), 201
+
+@app.route('/audio/<filename>')
+def serve_audio(filename):
+    return send_from_directory(AUDIO_DIR, filename)
+
 # ── Learning: Poems CRUD ──
 
 @app.route('/api/poems', methods=['GET'])
 def list_poems():
     conn = get_db()
     cursor = conn.cursor()
-    cursor.execute("SELECT id, record_date, title, author, content, mastery, created_at FROM poems ORDER BY record_date DESC")
+    cursor.execute("SELECT id, record_date, title, author, content, mastery, audio_filename, created_at FROM poems ORDER BY record_date DESC")
     rows = cursor.fetchall()
     conn.close()
-    records = [{"id": r[0], "record_date": r[1], "title": r[2], "author": r[3], "content": r[4], "mastery": r[5], "created_at": r[6]} for r in rows]
+    records = [{"id": r[0], "record_date": r[1], "title": r[2], "author": r[3], "content": r[4], "mastery": r[5], "audio_filename": r[6], "created_at": r[7]} for r in rows]
     return jsonify({"records": records})
 
 @app.route('/api/poems', methods=['POST'])
@@ -697,8 +730,8 @@ def add_poem():
         return jsonify({"error": "日期和内容不能为空"}), 400
     conn = get_db()
     cursor = conn.cursor()
-    cursor.execute("INSERT INTO poems (record_date, title, author, content, mastery) VALUES (?, ?, ?, ?, ?)",
-                   (data['record_date'], data.get('title', ''), data.get('author', ''), data['content'], data.get('mastery', '学习中')))
+    cursor.execute("INSERT INTO poems (record_date, title, author, content, mastery, audio_filename) VALUES (?, ?, ?, ?, ?, ?)",
+                   (data['record_date'], data.get('title', ''), data.get('author', ''), data['content'], data.get('mastery', '学习中'), data.get('audio_filename', None)))
     new_id = cursor.lastrowid
     conn.commit()
     conn.close()
@@ -713,7 +746,7 @@ def update_poem(record_id):
     cursor = conn.cursor()
     fields = []
     values = []
-    for key in ('title', 'author', 'content', 'mastery'):
+    for key in ('title', 'author', 'content', 'mastery', 'audio_filename'):
         if key in data:
             fields.append(f"{key} = ?")
             values.append(data[key])
@@ -730,15 +763,20 @@ def update_poem(record_id):
 def delete_poem(record_id):
     conn = get_db()
     cursor = conn.cursor()
-    cursor.execute("SELECT image_filename FROM poems WHERE id = ?", (record_id,))
+    cursor.execute("SELECT image_filename, audio_filename FROM poems WHERE id = ?", (record_id,))
     row = cursor.fetchone()
-    if row and row[0]:
-        img_path = PHOTOS_DIR / row[0]
-        if img_path.exists():
-            img_path.unlink()
-        thumb_path = THUMBNAILS_DIR / row[0]
-        if thumb_path.exists():
-            thumb_path.unlink()
+    if row:
+        if row[0]:
+            img_path = PHOTOS_DIR / row[0]
+            if img_path.exists():
+                img_path.unlink()
+            thumb_path = THUMBNAILS_DIR / row[0]
+            if thumb_path.exists():
+                thumb_path.unlink()
+        if row[1]:
+            audio_path = AUDIO_DIR / row[1]
+            if audio_path.exists():
+                audio_path.unlink()
     cursor.execute("DELETE FROM poems WHERE id = ?", (record_id,))
     conn.commit()
     conn.close()
@@ -892,6 +930,7 @@ def serve_thumbnail(filename):
 UPLOAD_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.gif', '.webp', '.mp4', '.mov', '.avi', '.mkv'}
 PHOTO_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.gif', '.webp'}
 VIDEO_EXTENSIONS = {'.mp4', '.mov', '.avi', '.mkv'}
+AUDIO_EXTENSIONS = {'.webm', '.mp3', '.wav', '.ogg', '.m4a'}
 
 @app.route('/api/upload', methods=['POST'])
 def upload_files():
@@ -997,8 +1036,15 @@ def test():
 if __name__ == '__main__':
     init_db()
     scan_photos()
-    print("Server starting on http://localhost:8000")
-    app.run(host='0.0.0.0', port=8000, debug=False)
+    cert_file = BASE_DIR / "cert.pem"
+    key_file = BASE_DIR / "key.pem"
+    if cert_file.exists() and key_file.exists():
+        ssl_ctx = (str(cert_file), str(key_file))
+        print("Server starting on https://0.0.0.0:8000")
+        app.run(host='0.0.0.0', port=8000, debug=False, ssl_context=ssl_ctx)
+    else:
+        print("Server starting on http://localhost:8000")
+        app.run(host='0.0.0.0', port=8000, debug=False)
 else:
     # gunicorn 或其他 wsgi 服务器加载时也执行初始化
     init_db()
