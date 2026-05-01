@@ -383,11 +383,11 @@
             display: flex;
             align-items: center;
             gap: 6px;
-            flex-wrap: wrap;
+            flex-wrap: nowrap;
         }
         .audio-cell audio {
-            height: 32px;
-            max-width: 160px;
+            height: 36px;
+            min-width: 200px;
         }
         .audio-action-btn {
             padding: 2px 8px;
@@ -408,6 +408,14 @@
         .audio-action-btn.del-audio:hover {
             border-color: #e88;
             color: #e44;
+        }
+        .audio-action-btn.stop-audio {
+            font-size: 0.8rem;
+            padding: 2px 5px;
+        }
+        .audio-action-btn.stop-audio:hover {
+            border-color: var(--accent);
+            color: var(--accent-dark);
         }
 
         /* ======== Delete Modal ======== */
@@ -585,7 +593,7 @@
         <div class="table-wrap">
             <table>
                 <thead>
-                    <tr><th>日期</th><th>题目</th><th>作者</th><th>古诗内容</th><th>掌握程度</th><th>录音</th><th></th></tr>
+                    <tr><th>日期</th><th>题目</th><th>作者</th><th>古诗内容</th><th>掌握程度</th><th style="min-width:320px;">录音</th><th></th></tr>
                 </thead>
                 <tbody id="recordsBody"></tbody>
             </table>
@@ -612,6 +620,7 @@
     <script>
         let records = [];
         let deleteTargetId = null;
+        let deleteMode = 'record'; // 'record' or 'audio'
 
         document.addEventListener('DOMContentLoaded', () => {
             loadRecords();
@@ -665,6 +674,7 @@
 
         function deleteRecord(id) {
             deleteTargetId = id;
+            deleteMode = 'record';
             document.getElementById('deleteModal').classList.add('active');
             document.getElementById('deletePasswordInput').value = '';
             document.getElementById('deleteError').textContent = '';
@@ -691,6 +701,7 @@
         function closeDeleteModal() {
             document.getElementById('deleteModal').classList.remove('active');
             deleteTargetId = null;
+            deleteMode = 'record';
         }
 
         async function submitDelete() {
@@ -700,9 +711,18 @@
                 return;
             }
             try {
-                await fetch(`/api/poems/${deleteTargetId}`, { method: 'DELETE' });
+                if (deleteMode === 'audio') {
+                    await fetch(`/api/poems/${deleteTargetId}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ audio_filename: null })
+                    });
+                    showToast('录音已删除');
+                } else {
+                    await fetch(`/api/poems/${deleteTargetId}`, { method: 'DELETE' });
+                    showToast('记录已删除');
+                }
                 closeDeleteModal();
-                showToast('记录已删除');
                 await loadRecords();
             } catch (e) {
                 console.error(e);
@@ -752,7 +772,8 @@
                 let audioCell;
                 if (r.audio_filename) {
                     audioCell = `<div class="audio-cell">
-                        <audio controls src="/audio/${r.audio_filename}"></audio>
+                        <audio controls src="/audio/${r.audio_filename}" onplay="pauseOtherAudios(this)"></audio>
+                        <button class="audio-action-btn stop-audio" onclick="stopAudio(this)" title="停止">⏹</button>
                         <button class="audio-action-btn del-audio" onclick="deleteAudio(${r.id})" title="删除录音">删除</button>
                     </div>`;
                 } else {
@@ -840,20 +861,27 @@
             }
         }
 
-        async function deleteAudio(poemId) {
-            if (!confirm('确定删除这条录音？')) return;
-            try {
-                await fetch(`/api/poems/${poemId}`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ audio_filename: null })
-                });
-                showToast('录音已删除');
-                await loadRecords();
-            } catch (e) {
-                console.error(e);
-                showToast('删除失败');
+        function pauseOtherAudios(current) {
+            document.querySelectorAll('audio').forEach(a => {
+                if (a !== current) a.pause();
+            });
+        }
+
+        function stopAudio(btn) {
+            const audio = btn.parentElement.querySelector('audio');
+            if (audio) {
+                audio.pause();
+                audio.currentTime = 0;
             }
+        }
+
+        function deleteAudio(poemId) {
+            deleteTargetId = poemId;
+            deleteMode = 'audio';
+            document.getElementById('deleteModal').classList.add('active');
+            document.getElementById('deletePasswordInput').value = '';
+            document.getElementById('deleteError').textContent = '';
+            document.getElementById('deletePasswordInput').focus();
         }
 
         async function uploadAudio(poemId, blob) {
