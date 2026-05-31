@@ -537,6 +537,7 @@
         let markerMode = false;
         let markerSelectedSchoolId = null;
         let editorMarkerLayer = null;
+        let editorMarkers = []; // 存储标记引用，用于更新可拖拽状态
         let editorMap = null;
         let editorInitialized = false;
         let drawnItems = null;
@@ -1031,6 +1032,7 @@
                     schools.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
                 if (editorMap) editorMap.pm.disableDraw();
                 editorMap.getContainer().style.cursor = 'crosshair';
+                renderEditorMarkers(); // 刷新标记为可拖拽
             } else {
                 markerSelectedSchoolId = null;
                 sel.value = '';
@@ -1040,6 +1042,7 @@
                     drawingEnabled = true;
                     document.getElementById('btnDraw').classList.add('active');
                     editorMap.pm.enableDraw('Line', { snappable: false, allowSelfIntersection: false, continueDrawing: true });
+                    renderEditorMarkers(); // 刷新标记为不可拖拽
                 }
             }
         }
@@ -1085,6 +1088,7 @@
                 editorMarkerLayer = new L.LayerGroup();
             }
             editorMarkerLayer.clearLayers();
+            editorMarkers = [];
             if (!editorMap) return;
 
             const districtColorMap = new Map(districts.map(d => [d.properties.schoolId, d.properties.color]));
@@ -1092,17 +1096,18 @@
             schools.forEach(s => {
                 if (s.lat == null || s.lng == null) return;
                 const color = districtColorMap.get(s.id) || '#3498DB';
+                const cursor = markerMode ? 'cursor:move;' : 'cursor:default;';
                 const icon = L.divIcon({
                     className: '',
                     html: `<div style="
                         background:${color};color:#fff;padding:3px 8px;border-radius:12px;
                         font-size:12px;font-weight:600;white-space:nowrap;
                         box-shadow:0 2px 6px rgba(0,0,0,0.3);border:2px solid #fff;
-                        cursor:move;position:relative;top:-14px;left:-4px;
+                        ${cursor}position:relative;top:-14px;left:-4px;
                     ">📍 ${s.name}</div>`,
                     iconSize: [0, 0],
                 });
-                const marker = L.marker([s.lat, s.lng], { icon, draggable: true })
+                const marker = L.marker([s.lat, s.lng], { icon, draggable: markerMode })
                     .addTo(editorMarkerLayer);
 
                 // 拖拽更新坐标
@@ -1115,6 +1120,7 @@
 
                 // 右键删除标记
                 marker.on('contextmenu', function () {
+                    if (!markerMode) return;
                     if (confirm(`清除「${s.name}」的位置标记？`)) {
                         delete s.lat;
                         delete s.lng;
@@ -1122,6 +1128,8 @@
                         renderEditorMarkers();
                     }
                 });
+
+                editorMarkers.push(marker);
             });
 
             editorMarkerLayer.addTo(editorMap);
