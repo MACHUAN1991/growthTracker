@@ -17,7 +17,8 @@ USER = os.environ.get('DEPLOY_USER', 'root')
 PASSWORD = os.environ.get('DEPLOY_PASSWORD')
 REMOTE_BASE = os.environ.get('DEPLOY_REMOTE_BASE', '/var/www/photo_gal')
 
-SYNC_FILES = [
+# 代码文件：本地 -> 服务器（本地是源头）
+CODE_FILES = [
     'server.py',
     'requirements.txt',
     'public/index.html',
@@ -25,6 +26,10 @@ SYNC_FILES = [
     'public/poems.html',
     'public/vocabulary.html',
     'public/schoolmap.html',
+]
+
+# 数据文件：服务器 -> 本地（服务器上的数据更新，通过网页编辑）
+DATA_FILES = [
     'public/data/schools.json',
     'public/data/districts/qujiang.geojson',
 ]
@@ -45,19 +50,16 @@ def connect():
     t.connect(username=USER, password=PASSWORD)
     return paramiko.SFTPClient.from_transport(t), t
 
-def sync_file(sftp, local_path, remote_path):
-    """删除远程文件 -> 上传 -> 验证 MD5"""
-    # 删除旧文件
+def push_file(sftp, local_path, remote_path):
+    """本地 -> 服务器：删除远程文件 -> 上传 -> 验证 MD5"""
     try:
         sftp.remove(remote_path)
         print(f'  [X] deleted {local_path.name}')
     except FileNotFoundError:
         pass
 
-    # 上传
     sftp.put(str(local_path), str(remote_path))
 
-    # 验证 MD5
     local_md5 = md5(local_path)
     with sftp.file(remote_path, 'rb') as f:
         remote_md5 = hashlib.md5(f.read()).hexdigest()
@@ -67,6 +69,28 @@ def sync_file(sftp, local_path, remote_path):
         return False
 
     print(f'  [>] {local_path.name} -> OK ({local_md5[:8]})')
+    return True
+
+def pull_file(sftp, local_path, remote_path):
+    """服务器 -> 本地：下载远程文件覆盖本地"""
+    try:
+        sftp.stat(remote_path)
+    except FileNotFoundError:
+        print(f'  [?] {local_path.name} not found on server, skipped')
+        return True
+
+    local_path.parent.mkdir(parents=True, exist_ok=True)
+    sftp.get(str(remote_path), str(local_path))
+
+    local_md5 = md5(local_path)
+    with sftp.file(remote_path, 'rb') as f:
+        remote_md5 = hashlib.md5(f.read()).hexdigest()
+
+    if local_md5 != remote_md5:
+        print(f'  [!] MD5 mismatch after pull: local={local_md5[:8]} remote={remote_md5[:8]}')
+        return False
+
+    print(f'  [<] {local_path.name} <- OK ({local_md5[:8]})')
     return True
 
 # ========== 主程序 ==========
@@ -97,22 +121,32 @@ def main():
     all_ok = True
 
     # 确保远程目录存在
+    all_files = CODE_FILES + DATA_FILES
     remote_dirs = set()
-    for item in SYNC_FILES:
+    for item in all_files:
         remote_dir = f'{REMOTE_BASE}/{item}'.rsplit('/', 1)[0]
         remote_dirs.add(remote_dir)
     for d in sorted(remote_dirs):
         ensure_remote_dir(sftp, d)
 
-    for item in SYNC_FILES:
+    # 代码文件：本地 -> 服务器
+    print('=== 代码文件 (本地 -> 服务器) ===')
+    for item in CODE_FILES:
         local_path = base / item
         remote_path = f'{REMOTE_BASE}/{item}'
-
         if not local_path.exists():
             continue
-
         print(f'[F] {item}')
-        if not sync_file(sftp, local_path, remote_path):
+        if not push_file(sftp, local_path, remote_path):
+            all_ok = False
+
+    # 数据文件：服务器 -> 本地
+    print('\n=== 数据文件 (服务器 -> 本地) ===')
+    for item in DATA_FILES:
+        local_path = base / item
+        remote_path = f'{REMOTE_BASE}/{item}'
+        print(f'[F] {item}')
+        if not pull_file(sftp, local_path, remote_path):
             all_ok = False
 
     transport.close()

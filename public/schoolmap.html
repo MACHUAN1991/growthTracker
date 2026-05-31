@@ -281,6 +281,18 @@
             color: var(--accent-dark);
             font-weight: 500;
         }
+        .marker-school-select {
+            padding: 6px 10px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 0.82rem;
+            font-family: inherit;
+            background: var(--bg-card);
+            color: var(--text);
+            outline: none;
+            max-width: 160px;
+        }
+        .marker-school-select:focus { border-color: var(--accent); }
 
         /* ======== Instructions ======== */
         .editor-instructions {
@@ -460,6 +472,11 @@
             <div class="editor-controls">
                 <button class="editor-btn active" id="btnDraw" onclick="toggleDraw()">✏️ 画线</button>
                 <button class="editor-btn primary" id="btnComplete" onclick="handleComplete()" disabled>完成闭合</button>
+                <span style="color:var(--border);margin:0 2px">|</span>
+                <button class="editor-btn" id="btnMarker" onclick="toggleMarkerMode()">📍 标记位置</button>
+                <select class="marker-school-select" id="markerSchoolSelect" style="display:none" onchange="handleMarkerSchoolChange(this.value)">
+                    <option value="">选择学校...</option>
+                </select>
             </div>
         </div>
 
@@ -497,6 +514,14 @@
             '#1ABC9C', '#E67E22', '#34495E', '#E91E63', '#00BCD4',
         ];
 
+        function darkenColor(hex, amount) {
+            const num = parseInt(hex.replace('#', ''), 16);
+            const r = Math.max(0, ((num >> 16) & 0xFF) * (1 - amount)) | 0;
+            const g = Math.max(0, ((num >> 8) & 0xFF) * (1 - amount)) | 0;
+            const b = Math.max(0, (num & 0xFF) * (1 - amount)) | 0;
+            return `#${(r << 16 | g << 8 | b).toString(16).padStart(6, '0')}`;
+        }
+
         // ── State ──
         let schools = [];
         let districts = [];
@@ -506,8 +531,12 @@
         // View mode objects
         let viewMap = null;
         let districtLayer = null;
+        let markerLayer = null;
 
-        // Editor mode objects
+        // Marker mode state
+        let markerMode = false;
+        let markerSelectedSchoolId = null;
+        let editorMarkerLayer = null;
         let editorMap = null;
         let editorInitialized = false;
         let drawnItems = null;
@@ -531,8 +560,20 @@
                         color: f.properties.color || DISTRICT_COLORS[i % DISTRICT_COLORS.length],
                     },
                 }));
+                // 去重：确保每个学区颜色不同
+                const usedColors = new Set();
+                districts.forEach(d => {
+                    if (usedColors.has(d.properties.color)) {
+                        // 找一个未被使用的颜色
+                        const next = DISTRICT_COLORS.find(c => !usedColors.has(c) && districts.every(dd => dd === d || dd.properties.color !== c));
+                        if (next) d.properties.color = next;
+                    }
+                    usedColors.add(d.properties.color);
+                });
                 editorFeatures = [...districts];
-                nextColorIndex = districts.length;
+                // 计算下一个颜色索引：找到已用颜色的最大索引 + 1，避免重复
+                const usedIndices = districts.map(d => DISTRICT_COLORS.indexOf(d.properties.color)).filter(i => i >= 0);
+                nextColorIndex = usedIndices.length > 0 ? Math.max(...usedIndices) + 1 : districts.length;
 
                 renderSchoolList();
                 initOrUpdateViewMap();
@@ -600,10 +641,11 @@
                         const isSelected = f.properties.schoolId === selectedSchoolId;
                         return {
                             fillColor: f.properties.color,
-                            fillOpacity: isSelected ? 0.4 : 0.2,
-                            color: f.properties.color,
-                            weight: isSelected ? 3 : 2,
-                            opacity: 0.8,
+                            fillOpacity: isSelected ? 0.5 : 0.35,
+                            color: darkenColor(f.properties.color, 0.3),
+                            weight: isSelected ? 4 : 3,
+                            opacity: 1,
+                            dashArray: isSelected ? null : '6 3',
                         };
                     },
                     onEachFeature: (feature, layer) => {
@@ -614,13 +656,14 @@
                             selectSchool(f.properties.schoolId);
                         });
                         layer.on('mouseover', function (e) {
-                            e.target.setStyle({ fillOpacity: 0.4, weight: 3 });
+                            e.target.setStyle({ fillOpacity: 0.5, weight: 4, dashArray: null });
                         });
                         layer.on('mouseout', function (e) {
                             const isSel = f.properties.schoolId === selectedSchoolId;
                             e.target.setStyle({
-                                fillOpacity: isSel ? 0.4 : 0.2,
-                                weight: isSel ? 3 : 2,
+                                fillOpacity: isSel ? 0.5 : 0.35,
+                                weight: isSel ? 4 : 3,
+                                dashArray: isSel ? null : '6 3',
                             });
                         });
 
@@ -644,6 +687,29 @@
             if (bounds.length > 0) {
                 viewMap.fitBounds(bounds, { padding: [40, 40], maxZoom: 14 });
             }
+
+            // 渲染学校位置标记
+            if (markerLayer) viewMap.removeLayer(markerLayer);
+            markerLayer = new L.LayerGroup();
+            const districtColorMap = new Map(districts.map(d => [d.properties.schoolId, d.properties.color]));
+            schools.forEach(s => {
+                if (s.lat == null || s.lng == null) return;
+                const color = districtColorMap.get(s.id) || '#3498DB';
+                const icon = L.divIcon({
+                    className: '',
+                    html: `<div style="
+                        background:${color};color:#fff;padding:4px 10px;border-radius:14px;
+                        font-size:13px;font-weight:600;white-space:nowrap;
+                        box-shadow:0 2px 8px rgba(0,0,0,0.3);border:2px solid #fff;
+                        position:relative;top:-16px;left:-6px;
+                    ">📍 ${s.name}</div>`,
+                    iconSize: [0, 0],
+                });
+                L.marker([s.lat, s.lng], { icon })
+                    .bindPopup(`<b>${s.name}</b><br><span style="color:#718096;font-size:12px">${s.address || ''}</span>`, { maxWidth: 200 })
+                    .addTo(markerLayer);
+            });
+            markerLayer.addTo(viewMap);
         }
 
         function buildPopupHTML(school) {
@@ -677,8 +743,9 @@
             const container = document.getElementById('schoolList');
             document.getElementById('schoolListHeader').textContent = `共 ${sorted.length} 所学校`;
 
+            const districtColorMap = new Map(districts.map(d => [d.properties.schoolId, d.properties.color]));
             container.innerHTML = sorted.map((school, i) => {
-                const color = DISTRICT_COLORS[i % DISTRICT_COLORS.length];
+                const color = districtColorMap.get(school.id) || DISTRICT_COLORS[i % DISTRICT_COLORS.length];
                 const typeLabel = school.type === 'public' ? '公办' : '民办';
                 const selected = school.id === selectedSchoolId ? ' selected' : '';
                 return `
@@ -760,7 +827,7 @@
                 initEditorMap();
             }
             if (mode === 'editor' && editorMap) {
-                setTimeout(() => editorMap.invalidateSize(), 100);
+                setTimeout(() => { editorMap.invalidateSize(); renderEditorMarkers(); }, 100);
             }
             if (mode === 'view') {
                 // Reload from server to ensure consistency
@@ -808,6 +875,11 @@
 
             // Handle new line segments
             editorMap.on('pm:create', function (e) {
+                // 标记模式下忽略 Geoman 绘图事件
+                if (markerMode) {
+                    e.layer.remove && e.layer.remove();
+                    return;
+                }
                 const layer = e.layer;
                 const geojson = layer.toGeoJSON();
                 tempLayer.addLayer(layer);
@@ -831,6 +903,9 @@
             });
 
             editorInitialized = true;
+
+            // 渲染已有的学校位置标记
+            renderEditorMarkers();
         }
 
         // Check if we have enough points to form a polygon
@@ -899,10 +974,11 @@
                     {
                         style: feature => ({
                             fillColor: feature.properties.color,
-                            fillOpacity: 0.2,
-                            color: feature.properties.color,
-                            weight: 2,
-                            opacity: 0.8,
+                            fillOpacity: 0.35,
+                            color: darkenColor(feature.properties.color, 0.3),
+                            weight: 3,
+                            opacity: 1,
+                            dashArray: '6 3',
                         }),
                         onEachFeature: (feature, layer) => {
                             const schoolId = feature.properties.schoolId;
@@ -940,6 +1016,115 @@
                 );
                 geojsonLayer.eachLayer(layer => drawnItems.addLayer(layer));
             }
+        }
+
+        // ── Marker Mode ──
+        function toggleMarkerMode() {
+            markerMode = !markerMode;
+            document.getElementById('btnMarker').classList.toggle('active', markerMode);
+            document.getElementById('btnDraw').classList.toggle('active', !markerMode);
+            const sel = document.getElementById('markerSchoolSelect');
+            sel.style.display = markerMode ? '' : 'none';
+            if (markerMode) {
+                // 填充学校下拉
+                sel.innerHTML = '<option value="">选择学校...</option>' +
+                    schools.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+                if (editorMap) editorMap.pm.disableDraw();
+                editorMap.getContainer().style.cursor = 'crosshair';
+            } else {
+                markerSelectedSchoolId = null;
+                sel.value = '';
+                if (editorMap) {
+                    editorMap.getContainer().style.cursor = '';
+                    editorMap.getContainer().removeEventListener('click', handleMarkerDomClick);
+                    drawingEnabled = true;
+                    document.getElementById('btnDraw').classList.add('active');
+                    editorMap.pm.enableDraw('Line', { snappable: false, allowSelfIntersection: false, continueDrawing: true });
+                }
+            }
+        }
+
+        function handleMarkerSchoolChange(schoolId) {
+            markerSelectedSchoolId = schoolId;
+            // 使用 DOM 事件绕过 Geoman 拦截
+            const container = editorMap ? editorMap.getContainer() : null;
+            if (container) {
+                container.removeEventListener('click', handleMarkerDomClick);
+                if (schoolId) {
+                    container.addEventListener('click', handleMarkerDomClick);
+                }
+            }
+        }
+
+        function handleMarkerDomClick(e) {
+            if (!markerMode || !markerSelectedSchoolId || !editorMap) return;
+            // 忽略控件区域的点击
+            if (e.target.closest('.leaflet-control') || e.target.closest('.leaflet-pm-toolbar')) return;
+            const latlng = editorMap.containerPointToLatLng([e.offsetX, e.offsetY]);
+            handleMarkerClick({ latlng });
+        }
+
+        function handleMarkerClick(e) {
+            if (!markerSelectedSchoolId) return;
+            const school = schools.find(s => s.id === markerSelectedSchoolId);
+            if (!school) return;
+
+            school.lat = e.latlng.lat;
+            school.lng = e.latlng.lng;
+            saveSchools();
+            renderEditorMarkers();
+
+            // 提示
+            const btn = document.getElementById('btnMarker');
+            btn.textContent = `✅ ${school.name} 已标记`;
+            setTimeout(() => { btn.textContent = '📍 标记位置'; }, 1500);
+        }
+
+        function renderEditorMarkers() {
+            if (!editorMarkerLayer) {
+                editorMarkerLayer = new L.LayerGroup();
+            }
+            editorMarkerLayer.clearLayers();
+            if (!editorMap) return;
+
+            const districtColorMap = new Map(districts.map(d => [d.properties.schoolId, d.properties.color]));
+
+            schools.forEach(s => {
+                if (s.lat == null || s.lng == null) return;
+                const color = districtColorMap.get(s.id) || '#3498DB';
+                const icon = L.divIcon({
+                    className: '',
+                    html: `<div style="
+                        background:${color};color:#fff;padding:3px 8px;border-radius:12px;
+                        font-size:12px;font-weight:600;white-space:nowrap;
+                        box-shadow:0 2px 6px rgba(0,0,0,0.3);border:2px solid #fff;
+                        cursor:move;position:relative;top:-14px;left:-4px;
+                    ">📍 ${s.name}</div>`,
+                    iconSize: [0, 0],
+                });
+                const marker = L.marker([s.lat, s.lng], { icon, draggable: true })
+                    .addTo(editorMarkerLayer);
+
+                // 拖拽更新坐标
+                marker.on('dragend', function (ev) {
+                    const pos = ev.target.getLatLng();
+                    s.lat = pos.lat;
+                    s.lng = pos.lng;
+                    saveSchools();
+                });
+
+                // 右键删除标记
+                marker.on('contextmenu', function () {
+                    if (confirm(`清除「${s.name}」的位置标记？`)) {
+                        delete s.lat;
+                        delete s.lng;
+                        saveSchools();
+                        renderEditorMarkers();
+                    }
+                });
+            });
+
+            editorMarkerLayer.addTo(editorMap);
         }
 
         // ── Modal ──

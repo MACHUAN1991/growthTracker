@@ -21,6 +21,39 @@
       "rangeDescription": "",
       "type": "public",
       "level": "primary"
+    },
+    {
+      "id": "custom-1780238440153",
+      "name": "曲江南湖小学",
+      "shortName": "曲江南湖小学",
+      "address": "",
+      "district": "曲江新区",
+      "year": 2026,
+      "rangeDescription": "",
+      "type": "public",
+      "level": "primary"
+    },
+    {
+      "id": "custom-1780238545054",
+      "name": "曲江三小",
+      "shortName": "曲江三小",
+      "address": "",
+      "district": "曲江新区",
+      "year": 2026,
+      "rangeDescription": "",
+      "type": "public",
+      "level": "primary"
+    },
+    {
+      "id": "custom-1780238754151",
+      "name": "曲江第一学校小学部",
+      "shortName": "曲江第一学校小学部",
+      "address": "",
+      "district": "曲江新区",
+      "year": 2026,
+      "rangeDescription": "",
+      "type": "public",
+      "level": "primary"
     }
   ]
 }
