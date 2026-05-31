@@ -25,6 +25,9 @@ SYNC_FILES = [
     'public/map.html',
     'public/poems.html',
     'public/vocabulary.html',
+    'public/schoolmap.html',
+    'public/data/schools.json',
+    'public/data/districts/qujiang.geojson',
 ]
 
 IGNORE = {'__pycache__', '.pyc', '.DS_Store', 'Thumbs.db'}
@@ -69,6 +72,23 @@ def sync_file(sftp, local_path, remote_path):
 
 # ========== 主程序 ==========
 
+def ensure_remote_dir(sftp, remote_path):
+    """递归创建远程目录"""
+    parts = remote_path.split('/')
+    current = ''
+    for part in parts:
+        if not part:
+            continue
+        current += '/' + part
+        try:
+            sftp.stat(current)
+        except FileNotFoundError:
+            try:
+                sftp.mkdir(current)
+                print(f'  [+] mkdir {current}')
+            except Exception:
+                pass
+
 def main():
     print(f'[*] Connecting to {USER}@{HOST}:{PORT} ...')
     sftp, transport = connect()
@@ -76,6 +96,14 @@ def main():
 
     base = Path(__file__).parent.resolve()
     all_ok = True
+
+    # 确保远程目录存在
+    remote_dirs = set()
+    for item in SYNC_FILES:
+        remote_dir = f'{REMOTE_BASE}/{item}'.rsplit('/', 1)[0]
+        remote_dirs.add(remote_dir)
+    for d in sorted(remote_dirs):
+        ensure_remote_dir(sftp, d)
 
     for item in SYNC_FILES:
         local_path = base / item
@@ -95,6 +123,8 @@ def main():
         ssh = paramiko.SSHClient()
         ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         ssh.connect(HOST, port=PORT, username=USER, password=PASSWORD or '')
+        # Fix permissions for data directory (service runs as www-data)
+        ssh.exec_command(f'chown -R www-data:www-data {REMOTE_BASE}/public/data/')
         _, stdout, stderr = ssh.exec_command('systemctl restart photo_gal')
         err = stderr.read().decode().strip()
         print('  [+] Service restarted' if not err else f'  [!] {err}')

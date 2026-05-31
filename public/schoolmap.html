@@ -1,0 +1,1050 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>学区地图 — 马莅格的成长记录</title>
+    <link rel="stylesheet" href="https://cdn.bootcdn.net/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@geoman-io/leaflet-geoman-free@2.19.3/dist/leaflet-geoman.css" />
+    <style>
+        :root {
+            --bg: #f4f8f6;
+            --bg-card: #ffffff;
+            --bg-elevated: #eaf2ee;
+            --accent: #4da682;
+            --accent-dark: #3a8a6a;
+            --accent-light: #a3d9c0;
+            --accent-dim: rgba(77, 166, 130, 0.08);
+            --text: #1e2e28;
+            --text-secondary: #5a7a6e;
+            --text-dim: #8fa8a0;
+            --border: #d6e5de;
+            --radius: 16px;
+            --radius-sm: 10px;
+            --shadow: 0 4px 20px rgba(0,0,0,0.06);
+            --ease: cubic-bezier(0.4, 0, 0.2, 1);
+            --transition: 0.3s var(--ease);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, 'SF Pro Display', 'Inter', 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        a { color: inherit; text-decoration: none; }
+
+        /* ======== Global Nav ======== */
+        .global-nav {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: rgba(255,255,255,0.85);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border-bottom: 1px solid var(--border);
+            padding: 0 24px;
+        }
+        .global-nav-inner {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            height: 52px;
+            gap: 2px;
+        }
+        .global-nav .nav-brand {
+            font-weight: 700;
+            font-size: 0.92rem;
+            color: var(--accent-dark);
+            margin-right: 16px;
+            white-space: nowrap;
+        }
+        .global-nav .nav-item {
+            padding: 6px 14px;
+            border-radius: 8px;
+            font-size: 0.82rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: var(--transition);
+            border: none;
+            background: transparent;
+            font-family: inherit;
+            text-decoration: none;
+        }
+        .global-nav .nav-item:hover { background: var(--accent-dim); color: var(--accent-dark); }
+        .global-nav .nav-item.active {
+            background: var(--accent-dim);
+            color: var(--accent-dark);
+            font-weight: 600;
+        }
+        .global-nav .nav-spacer { flex: 1; }
+        .global-nav .nav-stat {
+            font-size: 0.8rem;
+            color: var(--text-dim);
+        }
+        @media (max-width: 768px) {
+            .global-nav-inner { height: auto; padding: 8px 0; flex-wrap: wrap; gap: 2px; }
+            .global-nav .nav-brand { width: 100%; margin-right: 0; }
+            .global-nav .nav-item { font-size: 0.78rem; padding: 5px 10px; }
+            .global-nav { padding: 0 12px; }
+        }
+
+        /* ======== Mode Toggle Bar ======== */
+        .mode-bar {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 24px;
+            background: rgba(255,255,255,0.7);
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
+            z-index: 999;
+        }
+        .mode-btn {
+            padding: 6px 16px;
+            border: 1px solid var(--border);
+            background: transparent;
+            color: var(--text-dim);
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.82rem;
+            font-family: inherit;
+            transition: var(--transition);
+        }
+        .mode-btn:hover { border-color: var(--accent); color: var(--accent-dark); }
+        .mode-btn.active {
+            background: var(--accent-dim);
+            border-color: var(--accent);
+            color: var(--accent-dark);
+            font-weight: 500;
+        }
+        .mode-bar .mode-label {
+            font-size: 0.82rem;
+            color: var(--text-dim);
+        }
+
+        /* ======== Main Layout ======== */
+        .main-area {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* ======== Sidebar ======== */
+        .sidebar {
+            width: 300px;
+            background: var(--bg-card);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+            overflow: hidden;
+        }
+        .sidebar-header {
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border);
+        }
+        .search-input {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-family: inherit;
+            outline: none;
+            transition: var(--transition);
+        }
+        .search-input:focus { border-color: var(--accent); }
+        .search-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 16px;
+            right: 16px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            box-shadow: var(--shadow);
+            max-height: 240px;
+            overflow-y: auto;
+            z-index: 500;
+            display: none;
+        }
+        .search-dropdown.show { display: block; }
+        .search-dropdown-item {
+            padding: 8px 12px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+        .search-dropdown-item:hover { background: var(--accent-dim); }
+        .school-list {
+            flex: 1;
+            overflow-y: auto;
+        }
+        .school-list-header {
+            padding: 8px 16px;
+            font-size: 0.75rem;
+            color: var(--text-dim);
+            background: var(--bg-elevated);
+            border-bottom: 1px solid var(--border);
+        }
+        .school-card {
+            padding: 10px 16px;
+            cursor: pointer;
+            border-bottom: 1px solid var(--border);
+            transition: var(--transition);
+        }
+        .school-card:hover { background: var(--accent-dim); }
+        .school-card.selected { background: var(--accent-dim); }
+        .school-card-name {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .school-card-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+        .school-card-title {
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: var(--text);
+        }
+        .school-card-meta {
+            display: flex;
+            gap: 8px;
+            margin-top: 4px;
+            margin-left: 18px;
+        }
+        .school-card-meta span {
+            font-size: 0.75rem;
+            color: var(--text-dim);
+        }
+
+        /* ======== Map Area ======== */
+        .map-area {
+            flex: 1;
+            position: relative;
+        }
+        #viewMap, #editorMap {
+            width: 100%;
+            height: 100%;
+        }
+
+        /* ======== Editor Controls ======== */
+        .editor-controls {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            z-index: 1000;
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .editor-btn {
+            padding: 8px 14px;
+            font-size: 0.82rem;
+            font-family: inherit;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: var(--transition);
+            background: var(--bg-card);
+            color: var(--text);
+            box-shadow: var(--shadow);
+        }
+        .editor-btn:hover { background: var(--accent-dim); }
+        .editor-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .editor-btn.primary {
+            background: var(--accent);
+            color: #fff;
+            border-color: var(--accent);
+        }
+        .editor-btn.primary:hover { background: var(--accent-dark); }
+        .editor-btn.danger {
+            background: #ef4444;
+            color: #fff;
+            border-color: #ef4444;
+        }
+        .editor-btn.danger:hover { background: #dc2626; }
+        .editor-btn.active {
+            background: var(--accent-dim);
+            border-color: var(--accent);
+            color: var(--accent-dark);
+            font-weight: 500;
+        }
+
+        /* ======== Instructions ======== */
+        .editor-instructions {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            z-index: 1000;
+            background: rgba(255,255,255,0.92);
+            padding: 10px 14px;
+            border-radius: 8px;
+            box-shadow: var(--shadow);
+            font-size: 0.78rem;
+            color: var(--text-secondary);
+            max-width: 280px;
+            line-height: 1.6;
+        }
+        .editor-instructions strong { color: var(--text); }
+
+        /* ======== Modal ======== */
+        .modal-overlay {
+            position: absolute;
+            inset: 0;
+            z-index: 1000;
+            background: rgba(0,0,0,0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            display: none;
+        }
+        .modal-overlay.show { display: flex; }
+        .modal-box {
+            background: var(--bg-card);
+            border-radius: 12px;
+            box-shadow: 0 12px 48px rgba(0,0,0,0.2);
+            padding: 20px;
+            width: 320px;
+        }
+        .modal-box h3 {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 14px;
+        }
+        .modal-box label {
+            display: block;
+            font-size: 0.82rem;
+            color: var(--text-secondary);
+            margin-bottom: 4px;
+        }
+        .modal-box select,
+        .modal-box input[type="text"] {
+            width: 100%;
+            padding: 8px 10px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-family: inherit;
+            outline: none;
+            margin-bottom: 12px;
+        }
+        .modal-box select:focus,
+        .modal-box input[type="text"]:focus { border-color: var(--accent); }
+        .modal-actions {
+            display: flex;
+            gap: 8px;
+            justify-content: flex-end;
+            margin-top: 4px;
+        }
+        .modal-actions button {
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 0.82rem;
+            font-family: inherit;
+            cursor: pointer;
+            border: 1px solid var(--border);
+            transition: var(--transition);
+        }
+        .modal-actions .btn-cancel {
+            background: transparent;
+            color: var(--text-secondary);
+        }
+        .modal-actions .btn-cancel:hover { background: var(--bg-elevated); }
+        .modal-actions .btn-save {
+            background: var(--accent);
+            color: #fff;
+            border-color: var(--accent);
+        }
+        .modal-actions .btn-save:hover { background: var(--accent-dark); }
+        .modal-actions .btn-save:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        /* ======== Empty State ======== */
+        .empty-state {
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(255,255,255,0.95);
+            border-radius: var(--radius);
+            padding: 40px 48px;
+            text-align: center;
+            box-shadow: 0 12px 48px rgba(0,0,0,0.12);
+            z-index: 500;
+            border: 1px solid var(--border);
+        }
+        .empty-state.show { display: block; }
+        .empty-state .icon { font-size: 2.5rem; margin-bottom: 16px; }
+        .empty-state h3 {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+        }
+        .empty-state p {
+            font-size: 0.88rem;
+            color: var(--text-dim);
+        }
+
+        /* ======== Leaflet Popup Override ======== */
+        .leaflet-popup-content-wrapper {
+            border-radius: 12px !important;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.15) !important;
+        }
+        .leaflet-popup-content { margin: 12px 14px !important; }
+
+        /* ======== Responsive ======== */
+        @media (max-width: 768px) {
+            .sidebar { width: 100%; max-height: 40vh; border-right: none; border-bottom: 1px solid var(--border); }
+            .main-area { flex-direction: column; }
+            .mode-bar { padding: 8px 12px; }
+            .editor-controls { flex-wrap: wrap; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Global Nav -->
+    <nav class="global-nav">
+        <div class="global-nav-inner">
+            <span class="nav-brand">🌱 成长记录</span>
+            <a class="nav-item" href="/">🏠 首页</a>
+            <a class="nav-item" href="/growth">📈 成长曲线</a>
+            <a class="nav-item" href="/map">🌍 旅行足迹</a>
+            <a class="nav-item" href="/poems">📖 古诗</a>
+            <a class="nav-item" href="/vocabulary">🔤 单词</a>
+            <a class="nav-item active" href="/schoolmap">🏫 学区</a>
+            <span class="nav-spacer"></span>
+            <span class="nav-stat" id="navStat">加载中...</span>
+        </div>
+    </nav>
+
+    <!-- Mode Toggle -->
+    <div class="mode-bar">
+        <span class="mode-label">模式：</span>
+        <button class="mode-btn active" id="btnViewMode" onclick="switchMode('view')">🗺️ 浏览</button>
+        <button class="mode-btn" id="btnEditMode" onclick="switchMode('editor')">✏️ 编辑</button>
+    </div>
+
+    <!-- Main Area -->
+    <div class="main-area">
+        <!-- View Mode: Sidebar -->
+        <div class="sidebar" id="viewSidebar">
+            <div class="sidebar-header" style="position:relative">
+                <input class="search-input" type="text" id="searchInput" placeholder="搜索学校名称..." oninput="handleSearch(this.value)" onfocus="handleSearch(this.value)" onblur="setTimeout(()=>closeSearch(),200)">
+                <div class="search-dropdown" id="searchDropdown"></div>
+            </div>
+            <div class="school-list-header" id="schoolListHeader">共 0 所学校</div>
+            <div class="school-list" id="schoolList"></div>
+        </div>
+
+        <!-- View Mode: Map -->
+        <div class="map-area" id="viewMapArea">
+            <div id="viewMap"></div>
+        </div>
+
+        <!-- Editor Mode (hidden by default) -->
+        <div class="map-area" id="editorMapArea" style="display:none">
+            <div id="editorMap"></div>
+            <div class="editor-controls">
+                <button class="editor-btn active" id="btnDraw" onclick="toggleDraw()">✏️ 画线</button>
+                <button class="editor-btn primary" id="btnComplete" onclick="handleComplete()" disabled>完成闭合</button>
+            </div>
+        </div>
+
+        <!-- School Form Modal -->
+        <div class="modal-overlay" id="schoolModal">
+            <div class="modal-box">
+                <h3>关联学校信息</h3>
+                <label>选择已有学校</label>
+                <select id="modalSchoolSelect" onchange="handleModalSchoolChange(this.value)">
+                    <option value="">-- 新建 --</option>
+                </select>
+                <div id="customNameWrap">
+                    <label>学校名称</label>
+                    <input type="text" id="modalCustomName" placeholder="输入学校名称">
+                </div>
+                <div class="modal-actions">
+                    <button class="btn-cancel" onclick="closeModal()">取消</button>
+                    <button class="btn-save" id="modalSaveBtn" onclick="handleSave()" disabled>保存</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.bootcdn.net/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@geoman-io/leaflet-geoman-free@2.19.3/dist/leaflet-geoman.min.js"></script>
+
+    <script>
+        // ── Constants ──
+        const QUJIANG_CENTER = [34.20, 108.96];
+        const DEFAULT_ZOOM = 13;
+        const AMAP_TILE_URL = 'https://webrd0{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&x={x}&y={y}&z={z}';
+        const AMAP_SUBDOMAINS = ['1', '2', '3', '4'];
+        const DISTRICT_COLORS = [
+            '#E74C3C', '#3498DB', '#2ECC71', '#F39C12', '#9B59B6',
+            '#1ABC9C', '#E67E22', '#34495E', '#E91E63', '#00BCD4',
+        ];
+
+        // ── State ──
+        let schools = [];
+        let districts = [];
+        let selectedSchoolId = null;
+        let currentMode = 'view';
+
+        // View mode objects
+        let viewMap = null;
+        let districtLayer = null;
+
+        // Editor mode objects
+        let editorMap = null;
+        let editorInitialized = false;
+        let drawnItems = null;
+        let tempLayer = null;
+        let polylineSegments = [];
+        let editorFeatures = [];
+        let nextColorIndex = 0;
+
+        // ── Data Loading ──
+        async function loadData() {
+            try {
+                const [schoolsRes, districtsRes] = await Promise.all([
+                    fetch('/api/schools').then(r => r.json()),
+                    fetch('/api/districts').then(r => r.json()).catch(() => ({ features: [] })),
+                ]);
+                schools = schoolsRes.schools ?? [];
+                districts = (districtsRes.features ?? []).map((f, i) => ({
+                    ...f,
+                    properties: {
+                        ...f.properties,
+                        color: f.properties.color || DISTRICT_COLORS[i % DISTRICT_COLORS.length],
+                    },
+                }));
+                editorFeatures = [...districts];
+                nextColorIndex = districts.length;
+
+                renderSchoolList();
+                initOrUpdateViewMap();
+                updateNavStat();
+            } catch (err) {
+                console.error('Failed to load data:', err);
+                document.getElementById('navStat').textContent = '加载失败';
+            }
+        }
+
+        // ── Data Saving ──
+        async function saveSchools() {
+            try {
+                await fetch('/api/schools', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ schools }),
+                });
+            } catch (err) {
+                console.error('Failed to save schools:', err);
+            }
+        }
+
+        async function saveDistricts() {
+            try {
+                await fetch('/api/districts', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ type: 'FeatureCollection', features: editorFeatures }),
+                });
+            } catch (err) {
+                console.error('Failed to save districts:', err);
+            }
+        }
+
+        // ── View Mode ──
+        function initOrUpdateViewMap() {
+            if (!viewMap) {
+                viewMap = L.map('viewMap', {
+                    center: QUJIANG_CENTER,
+                    zoom: DEFAULT_ZOOM,
+                    zoomControl: true,
+                    attributionControl: true,
+                });
+                L.tileLayer(AMAP_TILE_URL, {
+                    subdomains: AMAP_SUBDOMAINS,
+                    attribution: '&copy; 高德地图',
+                    maxZoom: 18,
+                }).addTo(viewMap);
+            }
+
+            if (districtLayer) {
+                viewMap.removeLayer(districtLayer);
+            }
+
+            if (districts.length === 0) return;
+
+            const schoolMap = new Map(schools.map(s => [s.id, s]));
+
+            districtLayer = L.geoJSON(
+                { type: 'FeatureCollection', features: districts },
+                {
+                    style: feature => {
+                        const f = feature;
+                        const isSelected = f.properties.schoolId === selectedSchoolId;
+                        return {
+                            fillColor: f.properties.color,
+                            fillOpacity: isSelected ? 0.4 : 0.2,
+                            color: f.properties.color,
+                            weight: isSelected ? 3 : 2,
+                            opacity: 0.8,
+                        };
+                    },
+                    onEachFeature: (feature, layer) => {
+                        const f = feature;
+                        const school = schoolMap.get(f.properties.schoolId);
+
+                        layer.on('click', () => {
+                            selectSchool(f.properties.schoolId);
+                        });
+                        layer.on('mouseover', function (e) {
+                            e.target.setStyle({ fillOpacity: 0.4, weight: 3 });
+                        });
+                        layer.on('mouseout', function (e) {
+                            const isSel = f.properties.schoolId === selectedSchoolId;
+                            e.target.setStyle({
+                                fillOpacity: isSel ? 0.4 : 0.2,
+                                weight: isSel ? 3 : 2,
+                            });
+                        });
+
+                        layer.bindPopup(buildPopupHTML(school), { maxWidth: 320 });
+                    },
+                }
+            ).addTo(viewMap);
+
+            // Fit bounds
+            const bounds = [];
+            districts.forEach(f => {
+                if (f.geometry && f.geometry.coordinates && f.geometry.coordinates.length > 0) {
+                    const coords = f.geometry.type === 'Polygon'
+                        ? f.geometry.coordinates[0]
+                        : f.geometry.coordinates.flat(2);
+                    coords.forEach(c => {
+                        if (Array.isArray(c) && c.length >= 2) bounds.push([c[1], c[0]]);
+                    });
+                }
+            });
+            if (bounds.length > 0) {
+                viewMap.fitBounds(bounds, { padding: [40, 40], maxZoom: 14 });
+            }
+        }
+
+        function buildPopupHTML(school) {
+            if (!school) return '<div>未知学校</div>';
+            const typeLabel = school.type === 'public' ? '公办' : '民办';
+            const levelLabel = school.level === 'primary' ? '小学' : school.level === 'middle' ? '初中' : '九年一贯制';
+            const notesHTML = school.notes
+                ? `<p style="color:#c05621;margin:4px 0 0"><b>备注：</b>${school.notes}</p>`
+                : '';
+            return `
+                <div style="min-width:220px;max-width:300px;font-size:13px;line-height:1.5">
+                    <h3 style="font-size:15px;font-weight:600;margin:0 0 6px;color:#1a202c">${school.name}</h3>
+                    ${school.address ? `<p style="margin:2px 0;color:#4a5568"><b>地址：</b>${school.address}</p>` : ''}
+                    <p style="margin:2px 0;color:#4a5568"><b>类型：</b>${typeLabel}${levelLabel}</p>
+                    <p style="margin:2px 0;color:#4a5568"><b>年份：</b>${school.year}</p>
+                    ${school.rangeDescription ? `<p style="margin:6px 0 0;color:#4a5568"><b>招生范围：</b>${school.rangeDescription}</p>` : ''}
+                    ${notesHTML}
+                </div>
+            `;
+        }
+
+        function selectSchool(schoolId) {
+            selectedSchoolId = schoolId;
+            initOrUpdateViewMap();
+            highlightSchoolCard(schoolId);
+        }
+
+        // ── Sidebar ──
+        function renderSchoolList() {
+            const sorted = [...schools].sort((a, b) => a.name.localeCompare(b.name, 'zh'));
+            const container = document.getElementById('schoolList');
+            document.getElementById('schoolListHeader').textContent = `共 ${sorted.length} 所学校`;
+
+            container.innerHTML = sorted.map((school, i) => {
+                const color = DISTRICT_COLORS[i % DISTRICT_COLORS.length];
+                const typeLabel = school.type === 'public' ? '公办' : '民办';
+                const selected = school.id === selectedSchoolId ? ' selected' : '';
+                return `
+                    <div class="school-card${selected}" data-id="${school.id}" onclick="selectSchool('${school.id}')">
+                        <div class="school-card-name">
+                            <span class="school-card-dot" style="background:${color}"></span>
+                            <span class="school-card-title">${school.name}</span>
+                        </div>
+                        <div class="school-card-meta">
+                            <span>${typeLabel}</span>
+                            <span>${school.year}年</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function highlightSchoolCard(schoolId) {
+            document.querySelectorAll('.school-card').forEach(el => {
+                el.classList.toggle('selected', el.dataset.id === schoolId);
+            });
+            // Scroll into view
+            const card = document.querySelector(`.school-card[data-id="${schoolId}"]`);
+            if (card) card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+
+        // ── Search ──
+        function handleSearch(keyword) {
+            const dropdown = document.getElementById('searchDropdown');
+            const normalized = keyword.trim().toLowerCase();
+            if (!normalized) {
+                dropdown.classList.remove('show');
+                return;
+            }
+            const results = schools.filter(s =>
+                s.name.toLowerCase().includes(normalized) ||
+                s.shortName.toLowerCase().includes(normalized)
+            );
+            if (results.length === 0) {
+                dropdown.classList.remove('show');
+                return;
+            }
+            dropdown.innerHTML = results.map(s =>
+                `<div class="search-dropdown-item" onmousedown="selectSchoolFromSearch('${s.id}', '${s.shortName}')">${s.name}</div>`
+            ).join('');
+            dropdown.classList.add('show');
+        }
+
+        function selectSchoolFromSearch(schoolId, shortName) {
+            document.getElementById('searchInput').value = shortName;
+            closeSearch();
+            selectSchool(schoolId);
+        }
+
+        function closeSearch() {
+            document.getElementById('searchDropdown').classList.remove('show');
+        }
+
+        // ── Nav Stat ──
+        function updateNavStat() {
+            const el = document.getElementById('navStat');
+            if (schools.length === 0) {
+                el.textContent = '暂无学校数据';
+            } else {
+                el.textContent = `${schools.length} 所学校 · ${districts.length} 个学区`;
+            }
+        }
+
+        // ── Mode Switching ──
+        async function switchMode(mode) {
+            currentMode = mode;
+            document.getElementById('btnViewMode').classList.toggle('active', mode === 'view');
+            document.getElementById('btnEditMode').classList.toggle('active', mode === 'editor');
+            document.getElementById('viewSidebar').style.display = mode === 'view' ? '' : 'none';
+            document.getElementById('viewMapArea').style.display = mode === 'view' ? '' : 'none';
+            document.getElementById('editorMapArea').style.display = mode === 'editor' ? '' : 'none';
+
+            if (mode === 'editor' && !editorInitialized) {
+                initEditorMap();
+            }
+            if (mode === 'editor' && editorMap) {
+                setTimeout(() => editorMap.invalidateSize(), 100);
+            }
+            if (mode === 'view') {
+                // Reload from server to ensure consistency
+                await loadData();
+                setTimeout(() => viewMap && viewMap.invalidateSize(), 100);
+            }
+        }
+
+        // ── Editor Mode ──
+        let drawingEnabled = true;
+
+        function toggleDraw() {
+            if (!editorMap) return;
+            drawingEnabled = !drawingEnabled;
+            document.getElementById('btnDraw').classList.toggle('active', drawingEnabled);
+            if (drawingEnabled) {
+                editorMap.pm.enableDraw('Line', { snappable: false, allowSelfIntersection: false });
+            } else {
+                editorMap.pm.disableDraw();
+            }
+        }
+
+        function initEditorMap() {
+            editorMap = L.map('editorMap').setView(QUJIANG_CENTER, DEFAULT_ZOOM);
+            L.tileLayer(AMAP_TILE_URL, {
+                subdomains: AMAP_SUBDOMAINS,
+                attribution: '&copy; 高德地图',
+            }).addTo(editorMap);
+
+            drawnItems = new L.FeatureGroup();
+            editorMap.addLayer(drawnItems);
+
+            tempLayer = new L.FeatureGroup();
+            editorMap.addLayer(tempLayer);
+
+            // Load existing features
+            renderEditorFeatures();
+
+            // Auto-enable drawing with continueDrawing
+            editorMap.pm.enableDraw('Line', {
+                snappable: false,
+                allowSelfIntersection: false,
+                continueDrawing: true,
+            });
+
+            // Handle new line segments
+            editorMap.on('pm:create', function (e) {
+                const layer = e.layer;
+                const geojson = layer.toGeoJSON();
+                tempLayer.addLayer(layer);
+
+                if (geojson.geometry.type === 'LineString') {
+                    const coords = geojson.geometry.coordinates;
+                    polylineSegments.push(coords);
+                } else if (geojson.geometry.type === 'Polygon') {
+                    let coords = geojson.geometry.coordinates[0];
+                    // Remove closing point if present
+                    if (coords.length > 1) {
+                        const first = coords[0];
+                        const last = coords[coords.length - 1];
+                        const dist = Math.sqrt(Math.pow(first[0] - last[0], 2) + Math.pow(first[1] - last[1], 2));
+                        if (dist < 0.00001) coords = coords.slice(0, -1);
+                    }
+                    polylineSegments.push(coords);
+                }
+
+                checkClosedLoop();
+            });
+
+            editorInitialized = true;
+        }
+
+        // Check if we have enough points to form a polygon
+        function checkClosedLoop() {
+            if (polylineSegments.length === 0) {
+                document.getElementById('btnComplete').disabled = true;
+                return;
+            }
+
+            // Count total unique points
+            const allPoints = [];
+            for (const seg of polylineSegments) {
+                for (const p of seg) allPoints.push(p);
+            }
+
+            // Enable if we have at least 3 points
+            document.getElementById('btnComplete').disabled = allPoints.length < 3;
+        }
+
+        function handleComplete() {
+            if (polylineSegments.length === 0) return;
+
+            // Combine all segments
+            const allPoints = [];
+            for (const seg of polylineSegments) {
+                for (const p of seg) allPoints.push(p);
+            }
+            if (allPoints.length < 3) {
+                alert('至少需要3个点');
+                return;
+            }
+
+            // Close the polygon
+            const first = allPoints[0];
+            const last = allPoints[allPoints.length - 1];
+            const dist = Math.sqrt(Math.pow(first[0] - last[0], 2) + Math.pow(first[1] - last[1], 2));
+            if (dist > 0.00001) allPoints.push(first);
+
+            window._pendingGeojson = {
+                type: 'Feature',
+                properties: {},
+                geometry: { type: 'Polygon', coordinates: [allPoints] },
+            };
+            openModal();
+        }
+
+        function resetDrawing() {
+            polylineSegments = [];
+            if (tempLayer) tempLayer.clearLayers();
+            document.getElementById('btnComplete').disabled = true;
+            // Re-enable drawing
+            if (editorMap) {
+                drawingEnabled = true;
+                document.getElementById('btnDraw').classList.add('active');
+                editorMap.pm.enableDraw('Line', { snappable: false, allowSelfIntersection: false });
+            }
+        }
+
+        function renderEditorFeatures() {
+            if (!drawnItems) return;
+            drawnItems.clearLayers();
+
+            if (editorFeatures.length > 0) {
+                const geojsonLayer = L.geoJSON(
+                    { type: 'FeatureCollection', features: editorFeatures },
+                    {
+                        style: feature => ({
+                            fillColor: feature.properties.color,
+                            fillOpacity: 0.2,
+                            color: feature.properties.color,
+                            weight: 2,
+                            opacity: 0.8,
+                        }),
+                        onEachFeature: (feature, layer) => {
+                            const schoolId = feature.properties.schoolId;
+                            const schoolName = feature.properties.schoolName;
+                            const btnId = 'del-' + schoolId.replace(/[^a-zA-Z0-9]/g, '');
+
+                            layer.bindPopup(`
+                                <div style="text-align:center;min-width:120px">
+                                    <b>${schoolName}</b><br>
+                                    <button id="${btnId}" style="margin-top:8px;padding:4px 16px;background:#ef4444;color:white;border:none;border-radius:6px;cursor:pointer;font-size:13px">删除</button>
+                                </div>
+                            `);
+
+                            layer.on('popupopen', () => {
+                                setTimeout(() => {
+                                    const btn = document.getElementById(btnId);
+                                    if (btn) {
+                                        btn.onclick = async () => {
+                                            if (confirm(`确定删除「${schoolName}」的学区？`)) {
+                                                editorFeatures = editorFeatures.filter(f => f.properties.schoolId !== schoolId);
+                                                districts = [...editorFeatures];
+                                                schools = schools.filter(s => s.id !== schoolId);
+                                                renderEditorFeatures();
+                                                renderSchoolList();
+                                                updateNavStat();
+                                                await saveDistricts();
+                                                await saveSchools();
+                                            }
+                                        };
+                                    }
+                                }, 50);
+                            });
+                        },
+                    }
+                );
+                geojsonLayer.eachLayer(layer => drawnItems.addLayer(layer));
+            }
+        }
+
+        // ── Modal ──
+        function openModal() {
+            const select = document.getElementById('modalSchoolSelect');
+            select.innerHTML = '<option value="">-- 新建 --</option>' +
+                schools.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+            document.getElementById('modalCustomName').value = '';
+            document.getElementById('customNameWrap').style.display = '';
+            document.getElementById('modalSaveBtn').disabled = true;
+            document.getElementById('schoolModal').classList.add('show');
+        }
+
+        function closeModal() {
+            document.getElementById('schoolModal').classList.remove('show');
+            window._pendingGeojson = null;
+        }
+
+        function handleModalSchoolChange(value) {
+            document.getElementById('customNameWrap').style.display = value ? 'none' : '';
+            updateModalSaveBtn();
+        }
+
+        function updateModalSaveBtn() {
+            const schoolId = document.getElementById('modalSchoolSelect').value;
+            const customName = document.getElementById('modalCustomName').value.trim();
+            document.getElementById('modalSaveBtn').disabled = !schoolId && !customName;
+        }
+
+        document.getElementById('modalCustomName').addEventListener('input', updateModalSaveBtn);
+
+        async function handleSave() {
+            const pendingGeojson = window._pendingGeojson;
+            if (!pendingGeojson) return;
+
+            const schoolId = document.getElementById('modalSchoolSelect').value;
+            const customName = document.getElementById('modalCustomName').value.trim();
+            const school = schools.find(s => s.id === schoolId);
+            const schoolName = school ? school.name : customName;
+            const finalSchoolId = schoolId || `custom-${Date.now()}`;
+            const color = DISTRICT_COLORS[nextColorIndex % DISTRICT_COLORS.length];
+            nextColorIndex++;
+
+            const newFeature = {
+                type: 'Feature',
+                properties: {
+                    schoolId: finalSchoolId,
+                    schoolName: schoolName,
+                    color: color,
+                    year: new Date().getFullYear(),
+                },
+                geometry: pendingGeojson.geometry,
+            };
+
+            // Add new school if needed
+            if (!school && customName) {
+                schools.push({
+                    id: finalSchoolId,
+                    name: customName,
+                    shortName: customName,
+                    address: '',
+                    district: '曲江新区',
+                    year: new Date().getFullYear(),
+                    rangeDescription: '',
+                    type: 'public',
+                    level: 'primary',
+                });
+            }
+
+            // Add to drawn items on editor map
+            if (drawnItems) {
+                const polygonLayer = L.geoJSON(pendingGeojson, {
+                    style: {
+                        fillColor: color,
+                        fillOpacity: 0.2,
+                        color: color,
+                        weight: 2,
+                        opacity: 0.8,
+                    },
+                });
+                polygonLayer.eachLayer(layer => {
+                    layer.bindPopup(`<b>${schoolName}</b>`);
+                    drawnItems.addLayer(layer);
+                });
+            }
+
+            editorFeatures.push(newFeature);
+            // Sync districts for view mode
+            districts = [...editorFeatures];
+            renderSchoolList();
+            updateNavStat();
+
+            // Save to server
+            await saveSchools();
+            await saveDistricts();
+
+            // Reset drawing state
+            window._pendingGeojson = null;
+            closeModal();
+            resetDrawing();
+        }
+
+        // ── Init ──
+        loadData();
+    </script>
+</body>
+</html>

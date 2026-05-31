@@ -1,0 +1,26 @@
+{
+  "schools": [
+    {
+      "id": "custom-1780116095781",
+      "name": "曲江一小",
+      "shortName": "曲江一小",
+      "address": "",
+      "district": "曲江新区",
+      "year": 2026,
+      "rangeDescription": "",
+      "type": "public",
+      "level": "primary"
+    },
+    {
+      "id": "custom-1780149443815",
+      "name": "曲江二小",
+      "shortName": "曲江二小",
+      "address": "",
+      "district": "曲江新区",
+      "year": 2026,
+      "rangeDescription": "",
+      "type": "public",
+      "level": "primary"
+    }
+  ]
+}

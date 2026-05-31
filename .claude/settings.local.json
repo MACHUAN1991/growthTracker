@@ -12,7 +12,16 @@
       "Bash(python -c \"import py_compile; py_compile.compile\\('server.py', doraise=True\\); print\\('OK'\\)\")",
       "Bash(python -c \"import paramiko; print\\('paramiko OK'\\)\")",
       "Bash(pip install:*)",
-      "Bash(python sync.py)"
+      "Bash(python sync.py)",
+      "WebSearch",
+      "Bash(python *)",
+      "Bash(taskkill /F /IM python.exe)",
+      "Bash(tasklist *)",
+      "Bash(netstat -ano)",
+      "Bash(taskkill /F /PID 15488)",
+      "Bash(taskkill /F /PID 9120)",
+      "Bash(taskkill /F /PID 18128)",
+      "Bash(git push *)"
     ]
   }
 }

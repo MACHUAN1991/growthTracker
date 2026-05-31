@@ -1029,6 +1029,54 @@ def poems_page():
 def vocabulary_page():
     return send_file(BASE_DIR / "public" / "vocabulary.html")
 
+@app.route('/schoolmap')
+def schoolmap_page():
+    return send_file(BASE_DIR / "public" / "schoolmap.html")
+
+@app.route('/api/schools', methods=['GET'])
+def get_schools():
+    path = BASE_DIR / "public" / "data" / "schools.json"
+    if path.exists():
+        return send_file(path)
+    return jsonify({"schools": []})
+
+@app.route('/api/schools', methods=['POST'])
+def save_schools():
+    import json as json_mod
+    try:
+        data = request.get_json(force=True)
+    except Exception:
+        data = json_mod.loads(request.data.decode('utf-8'))
+    if not data:
+        return jsonify({"error": "No data"}), 400
+    path = BASE_DIR / "public" / "data" / "schools.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with open(path, 'w', encoding='utf-8') as f:
+        json_mod.dump(data, f, ensure_ascii=False, indent=2)
+    return jsonify({"ok": True})
+
+@app.route('/api/districts', methods=['GET'])
+def get_districts():
+    path = BASE_DIR / "public" / "data" / "districts" / "qujiang.geojson"
+    if path.exists():
+        return send_file(path)
+    return jsonify({"type": "FeatureCollection", "features": []})
+
+@app.route('/api/districts', methods=['POST'])
+def save_districts():
+    import json as json_mod
+    try:
+        data = request.get_json(force=True)
+    except Exception:
+        data = json_mod.loads(request.data.decode('utf-8'))
+    if not data:
+        return jsonify({"error": "No data"}), 400
+    path = BASE_DIR / "public" / "data" / "districts" / "qujiang.geojson"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with open(path, 'w', encoding='utf-8') as f:
+        json_mod.dump(data, f, ensure_ascii=False, indent=2)
+    return jsonify({"ok": True})
+
 @app.route('/test')
 def test():
     return send_file(BASE_DIR / "public" / "test.html")

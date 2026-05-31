@@ -1005,6 +1005,7 @@
             <a class="nav-item" href="/map">🌍 旅行足迹</a>
             <a class="nav-item" href="/poems">📖 古诗</a>
             <a class="nav-item" href="/vocabulary">🔤 单词</a>
+            <a class="nav-item" href="/schoolmap">🏫 学区</a>
             <span class="nav-spacer"></span>
             <button class="nav-upload-btn" onclick="openUpload()">+ 上传</button>
         </div>
@@ -1097,6 +1098,22 @@
                 </div>
             </div>
             <div class="db-empty" id="vcEmpty" style="display:none;">还没有学习单词<br><a href="/vocabulary" style="color:var(--accent);font-size:0.78rem;">去记录 →</a></div>
+        </div>
+
+        <!-- School Map card -->
+        <div class="db-card" id="dbSchoolMap">
+            <div class="db-header">
+                <span class="db-title">🏫 学区地图</span>
+                <a class="db-link" href="/schoolmap">查看全部 →</a>
+            </div>
+            <div class="db-loading" id="smLoading"><span class="spinner"></span>加载中...</div>
+            <div class="db-growth" id="smContent" style="display:none;">
+                <div class="db-growth-nums">
+                    <div class="gn-item"><div class="gn-val" id="smSchools">0</div><div class="gn-label">学校</div></div>
+                    <div class="gn-item"><div class="gn-val" id="smDistricts">0</div><div class="gn-label">学区</div></div>
+                </div>
+            </div>
+            <div class="db-empty" id="smEmpty" style="display:none;">还没有学区数据<br><a href="/schoolmap" style="color:var(--accent);font-size:0.78rem;">去查看 →</a></div>
         </div>
     </div>
 
@@ -1191,6 +1208,7 @@
             loadMapPreview();
             loadPoemsPreview();
             loadVocabPreview();
+            loadSchoolMapPreview();
         }
 
         async function loadGrowthPreview() {
@@ -1280,6 +1298,27 @@
                 document.getElementById('vcReview').textContent = recs.filter(r => r.mastery === '需复习').length;
             } catch(e) {
                 document.getElementById('vcLoading').innerHTML = '加载失败';
+            }
+        }
+
+        async function loadSchoolMapPreview() {
+            try {
+                const [schoolsRes, districtsRes] = await Promise.all([
+                    fetch('/api/schools').then(r => r.json()).catch(() => ({ schools: [] })),
+                    fetch('/api/districts').then(r => r.json()).catch(() => ({ features: [] })),
+                ]);
+                const schoolList = schoolsRes.schools || [];
+                const districtList = districtsRes.features || [];
+                document.getElementById('smLoading').style.display = 'none';
+                if (schoolList.length === 0) {
+                    document.getElementById('smEmpty').style.display = 'block';
+                    return;
+                }
+                document.getElementById('smContent').style.display = 'block';
+                document.getElementById('smSchools').textContent = schoolList.length;
+                document.getElementById('smDistricts').textContent = districtList.length;
+            } catch(e) {
+                document.getElementById('smLoading').innerHTML = '加载失败';
             }
         }
 
