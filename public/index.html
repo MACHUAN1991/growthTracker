@@ -249,39 +249,6 @@
         }
         .db-growth .db-gain span { color: var(--accent-dark); font-weight: 600; }
 
-        /* Map preview */
-        .db-map-preview {
-            display: flex;
-            align-items: center;
-            gap: 16px;
-        }
-        .db-map-preview .map-illust {
-            width: 80px; height: 80px;
-            border-radius: var(--radius-sm);
-            background: linear-gradient(135deg, #e8f5ef, #d4ede3);
-            flex-shrink: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 2rem;
-        }
-        .db-map-preview .map-info { flex: 1; }
-        .db-map-preview .map-count {
-            font-size: 1.5rem;
-            font-weight: 700;
-            color: var(--accent-dark);
-            line-height: 1.2;
-        }
-        .db-map-preview .map-label {
-            font-size: 0.78rem;
-            color: var(--text-dim);
-        }
-        .db-map-preview .map-years {
-            font-size: 0.75rem;
-            color: var(--text-secondary);
-            margin-top: 4px;
-        }
-
         /* ======== Photo Section Header ======== */
         .photo-section-header {
             max-width: 1400px;
@@ -1002,7 +969,7 @@
             <span class="nav-brand">🌱 成长记录</span>
             <a class="nav-item active" href="/">🏠 首页</a>
             <a class="nav-item" href="/growth">📈 成长曲线</a>
-            <a class="nav-item" href="/map">🌍 旅行足迹</a>
+
             <a class="nav-item" href="/poems">📖 古诗</a>
             <a class="nav-item" href="/vocabulary">🔤 单词</a>
             <a class="nav-item" href="/schoolmap">🏫 学区</a>
@@ -1024,7 +991,6 @@
         <div class="stat-card"><div class="stat-num" id="statTotal">—</div><div class="stat-label">全部记录</div></div>
         <div class="stat-card"><div class="stat-num" id="statYears">—</div><div class="stat-label">成长年份</div></div>
         <div class="stat-card"><div class="stat-num" id="statMonths">—</div><div class="stat-label">跨越月份</div></div>
-        <div class="stat-card"><div class="stat-num" id="statPlaces">—</div><div class="stat-label">到过的地方</div></div>
     </div>
 
     <!-- Dashboard -->
@@ -1046,24 +1012,6 @@
                 <div class="db-gain" id="gwGain">身高增长 <span id="gwGainH">—</span> · 体重增长 <span id="gwGainW">—</span></div>
             </div>
             <div class="db-empty" id="gwEmpty" style="display:none;">还没有成长记录<br><a href="/growth" style="color:var(--accent);font-size:0.78rem;">去记录 →</a></div>
-        </div>
-
-        <!-- Map card -->
-        <div class="db-card" id="dbMap">
-            <div class="db-header">
-                <span class="db-title">🌍 旅行足迹</span>
-                <a class="db-link" href="/map">查看全部 →</a>
-            </div>
-            <div class="db-loading" id="mpLoading"><span class="spinner"></span>加载中...</div>
-            <div class="db-map-preview" id="mpContent" style="display:none;">
-                <div class="map-illust">🗺️</div>
-                <div class="map-info">
-                    <div class="map-count" id="mpCount">0</div>
-                    <div class="map-label">张照片带位置信息</div>
-                    <div class="map-years" id="mpYears"></div>
-                </div>
-            </div>
-            <div class="db-empty" id="mpEmpty" style="display:none;">还没有带 GPS 的照片<br><span style="font-size:0.78rem;color:var(--text-dim);">手机拍照时开启位置即可</span></div>
         </div>
 
         <!-- Poems card -->
@@ -1205,7 +1153,7 @@
         // ── Dashboard Data Loading ──
         async function loadDashboard() {
             loadGrowthPreview();
-            loadMapPreview();
+
             loadPoemsPreview();
             loadVocabPreview();
             loadSchoolMapPreview();
@@ -1244,24 +1192,6 @@
             }
         }
 
-        async function loadMapPreview() {
-            try {
-                const r = await fetch('/api/photos/map');
-                const d = await r.json();
-                const photos = d.photos || [];
-                document.getElementById('mpLoading').style.display = 'none';
-                if (photos.length === 0) {
-                    document.getElementById('mpEmpty').style.display = 'block';
-                    return;
-                }
-                document.getElementById('mpContent').style.display = 'flex';
-                document.getElementById('mpCount').textContent = photos.length;
-                const years = [...new Set(photos.map(p => new Date(p.taken_at).getFullYear()).filter(y => !isNaN(y)))].sort();
-                document.getElementById('mpYears').textContent = years.join('、');
-            } catch(e) {
-                document.getElementById('mpLoading').innerHTML = '加载失败';
-            }
-        }
 
         async function loadPoemsPreview() {
             try {
@@ -1329,12 +1259,6 @@
                 const d = await r.json();
                 renderStats(d.timeline);
                 renderYears(d.timeline);
-                // Update map stat
-                try {
-                    const mpr = await fetch('/api/photos/map');
-                    const mpd = await mpr.json();
-                    document.getElementById('statPlaces').textContent = (mpd.photos || []).length;
-                } catch(e) {}
             } catch(e) { console.error(e); }
         }
 

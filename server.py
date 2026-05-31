@@ -848,33 +848,6 @@ def delete_vocabulary(record_id):
     conn.close()
     return jsonify({"message": "Deleted successfully"})
 
-@app.route('/api/photos/map', methods=['GET'])
-def list_map_photos():
-    year = request.args.get('year')
-    conn = get_db()
-    cursor = conn.cursor()
-    query = "SELECT id, filename, original_name, taken_at, description, file_type, latitude, longitude FROM photos WHERE latitude IS NOT NULL AND longitude IS NOT NULL"
-    params = []
-    if year:
-        query += " AND strftime('%Y', taken_at) = ?"
-        params.append(year)
-    query += " ORDER BY taken_at DESC"
-    cursor.execute(query, params)
-    photos = []
-    for row in cursor.fetchall():
-        photos.append({
-            "id": row[0],
-            "filename": row[1],
-            "original_name": row[2],
-            "taken_at": row[3],
-            "description": row[4],
-            "file_type": row[5],
-            "latitude": row[6],
-            "longitude": row[7]
-        })
-    conn.close()
-    return jsonify({"photos": photos})
-
 @app.route('/photos/<path:filename>')
 def serve_photo(filename):
     return send_from_directory(PHOTOS_DIR, filename)
@@ -1016,10 +989,6 @@ def index():
 @app.route('/growth')
 def growth():
     return send_file(BASE_DIR / "public" / "growth.html")
-
-@app.route('/map')
-def map_view():
-    return send_file(BASE_DIR / "public" / "map.html")
 
 @app.route('/poems')
 def poems_page():

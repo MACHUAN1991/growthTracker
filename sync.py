@@ -22,7 +22,6 @@ SYNC_FILES = [
     'requirements.txt',
     'public/index.html',
     'public/growth.html',
-    'public/map.html',
     'public/poems.html',
     'public/vocabulary.html',
     'public/schoolmap.html',
